@@ -11,10 +11,28 @@ import {
   getItemBySlug,
 } from "~/lib/content";
 
+const UPLOADS_BASE = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL ?? "";
+
+function rewriteUploadsSrc(src: unknown): string | undefined {
+  if (typeof src !== "string") return undefined;
+  if (UPLOADS_BASE && src.startsWith("/uploads/")) {
+    return UPLOADS_BASE.replace(/\/$/, "") + src;
+  }
+  return src;
+}
+
 const mdxComponents = {
-  img: (props: ImgHTMLAttributes<HTMLImageElement>) => (
+  img: ({
+    src,
+    ...rest
+  }: ImgHTMLAttributes<HTMLImageElement>) => (
     // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-    <img loading="lazy" decoding="async" {...props} />
+    <img
+      src={rewriteUploadsSrc(src)}
+      loading="lazy"
+      decoding="async"
+      {...rest}
+    />
   ),
 };
 

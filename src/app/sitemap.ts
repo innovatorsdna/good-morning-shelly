@@ -16,11 +16,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/categories/`, changeFrequency: "weekly" },
     ...items.map((it) => ({
       url: `${BASE}/${it.slug}/`,
-      lastModified: it.modified ? new Date(it.modified) : new Date(it.date),
+      lastModified: safeDate(it.modified ?? it.date),
     })),
     ...cats.map((c) => ({
       url: `${BASE}/category/${c.slug}/`,
       changeFrequency: "weekly" as const,
     })),
   ];
+}
+
+function safeDate(s: string | undefined): Date | undefined {
+  if (!s) return undefined;
+  const d = new Date(s);
+  return isNaN(d.valueOf()) ? undefined : d;
 }

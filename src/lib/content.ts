@@ -37,6 +37,12 @@ const CATEGORY_NAME_OVERRIDES: Record<string, string> = {
 
 let cache: { all: ContentItem[]; byTypeSlug: Map<string, ContentItem> } | null = null;
 
+function asIsoString(v: unknown): string {
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "string") return v;
+  return "";
+}
+
 function readDir(dir: string, type: "post" | "page"): ContentItem[] {
   if (!fs.existsSync(dir)) return [];
   const items: ContentItem[] = [];
@@ -51,8 +57,9 @@ function readDir(dir: string, type: "post" | "page"): ContentItem[] {
       slug:
         typeof fm.slug === "string" ? fm.slug : file.replace(/\.mdx$/, ""),
       title: typeof fm.title === "string" ? fm.title : "",
-      date: typeof fm.date === "string" ? fm.date : "",
-      modified: typeof fm.modified === "string" ? fm.modified : undefined,
+      // YAML auto-parses ISO 8601 to Date; accept either form
+      date: asIsoString(fm.date),
+      modified: fm.modified ? asIsoString(fm.modified) : undefined,
       status: (fm.status as Status) ?? "publish",
       categories: Array.isArray(fm.categories)
         ? (fm.categories as string[])
