@@ -3,8 +3,8 @@ import { getAllCategories } from "~/lib/content";
 
 export const metadata = { title: "Categories — Good Morning Shelly" };
 
-export default function CategoriesIndex() {
-  const cats = getAllCategories();
+export default async function CategoriesIndex() {
+  const cats = await getAllCategories();
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <h1 className="text-3xl font-bold tracking-tight">Categories</h1>

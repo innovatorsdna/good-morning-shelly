@@ -6,9 +6,9 @@ import {
 
 const BASE = process.env.SITE_URL ?? "https://goodmorningshelly.com";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const items = getAllItems().filter((it) => it.status === "publish");
-  const cats = getAllCategories();
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const items = (await getAllItems()).filter((it) => it.status === "publish");
+  const cats = await getAllCategories();
 
   return [
     { url: `${BASE}/`, changeFrequency: "weekly" },

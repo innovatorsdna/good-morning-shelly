@@ -132,3 +132,18 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+/**
+ * Admin-only procedure. Requires the session user's `role` to be `"admin"`.
+ *
+ * To bootstrap the first admin, sign in normally, then run against the DB:
+ *
+ *   UPDATE user SET role = 'admin' WHERE email = 'you@example.com';
+ */
+export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  const role = (ctx.session.user as { role?: string }).role;
+  if (role !== "admin") {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+  return next({ ctx });
+});

@@ -3,8 +3,8 @@ import { formatPostDate, getPublishedPosts } from "~/lib/content";
 
 export const metadata = { title: "Archive — Good Morning Shelly" };
 
-export default function ArchivePage() {
-  const posts = getPublishedPosts();
+export default async function ArchivePage() {
+  const posts = await getPublishedPosts();
   const byYear = new Map<string, typeof posts>();
   for (const p of posts) {
     const year = p.date ? p.date.slice(0, 4) : "Undated";

@@ -11,8 +11,8 @@ function escapeXml(s: string): string {
     .replace(/'/g, "&apos;");
 }
 
-export function GET() {
-  const posts = getPublishedPosts().slice(0, 50);
+export async function GET() {
+  const posts = (await getPublishedPosts()).slice(0, 50);
   const items = posts
     .map((p) => {
       const url = `${BASE}/${p.slug}/`;

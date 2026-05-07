@@ -1,19 +1,26 @@
 import "server-only";
-import fs from "node:fs";
-import path from "node:path";
-import matter from "gray-matter";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 
-const CONTENT_DIR = path.join(process.cwd(), "content");
-const POSTS_DIR = path.join(CONTENT_DIR, "posts");
-const PAGES_DIR = path.join(CONTENT_DIR, "pages");
+import { db } from "~/server/db";
+import {
+  category as categoryTable,
+  post as postTable,
+  postCategory,
+} from "~/server/db/schema";
 
 export type Status = "publish" | "draft" | "private";
+export type ContentType = "post" | "page";
+export type ContentSource = "mdx" | "tiptap";
 
 export interface ContentItem {
-  type: "post" | "page";
+  id: number;
+  type: ContentType;
+  source: ContentSource;
   slug: string;
   title: string;
+  /** ISO 8601 publish date. Empty string when not yet published. */
   date: string;
+  /** ISO 8601 last-modified timestamp. */
   modified?: string;
   status: Status;
   categories?: string[];
@@ -23,11 +30,8 @@ export interface ContentItem {
   oldSlugs?: string[];
   wpId?: string;
   body: string;
-  filePath: string;
 }
 
-// Most category slugs are clean kebab-case; these need explicit display names
-// because title-casing the slug doesn't reproduce them correctly.
 const CATEGORY_NAME_OVERRIDES: Record<string, string> = {
   "roena-studio": "Röena Studio",
   "swedendenmark-trip": "Sweden/Denmark Trip",
@@ -35,80 +39,108 @@ const CATEGORY_NAME_OVERRIDES: Record<string, string> = {
   "swedish-unit-2": "Swedish Unit",
 };
 
-let cache: { all: ContentItem[]; byTypeSlug: Map<string, ContentItem> } | null = null;
-
-function asIsoString(v: unknown): string {
-  if (v instanceof Date) return v.toISOString();
-  if (typeof v === "string") return v;
-  return "";
+function toIsoString(d: Date | null | undefined): string {
+  return d ? d.toISOString() : "";
 }
 
-function readDir(dir: string, type: "post" | "page"): ContentItem[] {
-  if (!fs.existsSync(dir)) return [];
-  const items: ContentItem[] = [];
-  for (const file of fs.readdirSync(dir)) {
-    if (!file.endsWith(".mdx")) continue;
-    const filePath = path.join(dir, file);
-    const raw = fs.readFileSync(filePath, "utf-8");
-    const { data, content } = matter(raw);
-    const fm = data as Record<string, unknown>;
-    items.push({
-      type,
-      slug:
-        typeof fm.slug === "string" ? fm.slug : file.replace(/\.mdx$/, ""),
-      title: typeof fm.title === "string" ? fm.title : "",
-      // YAML auto-parses ISO 8601 to Date; accept either form
-      date: asIsoString(fm.date),
-      modified: fm.modified ? asIsoString(fm.modified) : undefined,
-      status: (fm.status as Status) ?? "publish",
-      categories: Array.isArray(fm.categories)
-        ? (fm.categories as string[])
-        : undefined,
-      cover: typeof fm.cover === "string" ? fm.cover : undefined,
-      excerpt: typeof fm.excerpt === "string" ? fm.excerpt : undefined,
-      sticky: fm.sticky === true,
-      oldSlugs: Array.isArray(fm.oldSlugs) ? (fm.oldSlugs as string[]) : undefined,
-      wpId: typeof fm.wpId === "string" ? fm.wpId : undefined,
-      body: content,
-      filePath,
-    });
+interface PostRow {
+  id: number;
+  slug: string;
+  type: string;
+  source: string;
+  title: string;
+  body: string;
+  excerpt: string | null;
+  cover: string | null;
+  status: string;
+  sticky: boolean;
+  wpId: string | null;
+  publishedAt: Date | null;
+  updatedAt: Date | null;
+  createdAt: Date;
+}
+
+function rowToItem(
+  row: PostRow,
+  categoriesByPost: Map<number, string[]>,
+): ContentItem {
+  return {
+    id: row.id,
+    type: row.type === "page" ? "page" : "post",
+    source: row.source === "mdx" ? "mdx" : "tiptap",
+    slug: row.slug,
+    title: row.title,
+    date: toIsoString(row.publishedAt),
+    modified: toIsoString(row.updatedAt) || undefined,
+    status: (row.status as Status) ?? "draft",
+    categories: categoriesByPost.get(row.id),
+    cover: row.cover ?? undefined,
+    excerpt: row.excerpt ?? undefined,
+    sticky: row.sticky,
+    wpId: row.wpId ?? undefined,
+    body: row.body,
+  };
+}
+
+async function loadCategoriesFor(postIds: number[]): Promise<Map<number, string[]>> {
+  const map = new Map<number, string[]>();
+  if (postIds.length === 0) return map;
+  const rows = await db
+    .select()
+    .from(postCategory)
+    .where(inArray(postCategory.postId, postIds));
+  for (const r of rows) {
+    const arr = map.get(r.postId) ?? [];
+    arr.push(r.categorySlug);
+    map.set(r.postId, arr);
   }
-  return items;
+  return map;
 }
 
-function loadAll(): { all: ContentItem[]; byTypeSlug: Map<string, ContentItem> } {
-  if (cache) return cache;
-  const posts = readDir(POSTS_DIR, "post");
-  const pages = readDir(PAGES_DIR, "page");
-  const all = [...posts, ...pages];
-  const byTypeSlug = new Map<string, ContentItem>();
-  for (const it of all) byTypeSlug.set(`${it.type}:${it.slug}`, it);
-  cache = { all, byTypeSlug };
-  return cache;
+export async function getAllItems(): Promise<ContentItem[]> {
+  const rows = await db
+    .select()
+    .from(postTable)
+    .orderBy(desc(postTable.publishedAt));
+  const cats = await loadCategoriesFor(rows.map((r) => r.id));
+  return rows.map((r) => rowToItem(r, cats));
 }
 
-export function getAllItems(): ContentItem[] {
-  return loadAll().all;
+export async function getPublishedPosts(): Promise<ContentItem[]> {
+  const rows = await db
+    .select()
+    .from(postTable)
+    .where(eq(postTable.type, "post"))
+    .orderBy(desc(postTable.publishedAt));
+  const published = rows.filter((r) => r.status === "publish");
+  const cats = await loadCategoriesFor(published.map((r) => r.id));
+  return published.map((r) => rowToItem(r, cats));
 }
 
-export function getPublishedPosts(): ContentItem[] {
-  return getAllItems()
-    .filter((it) => it.type === "post" && it.status === "publish")
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
+export async function getAllPages(): Promise<ContentItem[]> {
+  const rows = await db
+    .select()
+    .from(postTable)
+    .where(eq(postTable.type, "page"));
+  const cats = await loadCategoriesFor(rows.map((r) => r.id));
+  return rows.map((r) => rowToItem(r, cats));
 }
 
-export function getAllPages(): ContentItem[] {
-  return getAllItems().filter((it) => it.type === "page");
-}
-
-export function getItemBySlug(slug: string): ContentItem | null {
-  const { byTypeSlug } = loadAll();
-  // Prefer page over post (matches WordPress's flat-namespace resolution order)
-  return (
-    byTypeSlug.get(`page:${slug}`) ??
-    byTypeSlug.get(`post:${slug}`) ??
-    null
+export async function getItemBySlug(slug: string): Promise<ContentItem | null> {
+  const direct = await db
+    .select()
+    .from(postTable)
+    .where(eq(postTable.slug, slug))
+    .limit(1);
+  // Match the original WordPress resolution order: page wins over post when
+  // both exist with the same slug.
+  const sorted = direct.sort((a, b) =>
+    a.type === b.type ? 0 : a.type === "page" ? -1 : 1,
   );
+  const row = sorted[0];
+  if (!row) return null;
+  const cats = await loadCategoriesFor([row.id]);
+  return rowToItem(row, cats);
 }
 
 export function getCategoryDisplayName(slug: string): string {
@@ -116,21 +148,46 @@ export function getCategoryDisplayName(slug: string): string {
   return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function getPostsByCategory(slug: string): ContentItem[] {
-  return getPublishedPosts().filter((p) => p.categories?.includes(slug));
+export async function getPostsByCategory(slug: string): Promise<ContentItem[]> {
+  const rows = await db
+    .select({ post: postTable })
+    .from(postCategory)
+    .innerJoin(postTable, eq(postCategory.postId, postTable.id))
+    .where(eq(postCategory.categorySlug, slug))
+    .orderBy(desc(postTable.publishedAt));
+  const published = rows
+    .map((r) => r.post)
+    .filter((r) => r.type === "post" && r.status === "publish");
+  const cats = await loadCategoriesFor(published.map((r) => r.id));
+  return published.map((r) => rowToItem(r, cats));
 }
 
-export function getAllCategories(): Array<{ slug: string; name: string; count: number }> {
+export async function getAllCategories(): Promise<
+  Array<{ slug: string; name: string; count: number }>
+> {
+  const rows = await db
+    .select({
+      slug: postCategory.categorySlug,
+      status: postTable.status,
+      type: postTable.type,
+    })
+    .from(postCategory)
+    .innerJoin(postTable, eq(postCategory.postId, postTable.id));
   const counts = new Map<string, number>();
-  for (const p of getPublishedPosts()) {
-    for (const c of p.categories ?? []) {
-      counts.set(c, (counts.get(c) ?? 0) + 1);
-    }
+  for (const r of rows) {
+    if (r.type !== "post" || r.status !== "publish") continue;
+    counts.set(r.slug, (counts.get(r.slug) ?? 0) + 1);
   }
+  // Pull display names from the category table where present.
+  const named = await db
+    .select()
+    .from(categoryTable)
+    .orderBy(asc(categoryTable.slug));
+  const nameBySlug = new Map(named.map((c) => [c.slug, c.name]));
   return [...counts.entries()]
     .map(([slug, count]) => ({
       slug,
-      name: getCategoryDisplayName(slug),
+      name: nameBySlug.get(slug) ?? getCategoryDisplayName(slug),
       count,
     }))
     .sort((a, b) => b.count - a.count);

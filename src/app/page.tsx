@@ -4,8 +4,8 @@ import { getPublishedPosts } from "~/lib/content";
 
 const PER_PAGE = 30;
 
-export default function HomePage() {
-  const posts = getPublishedPosts();
+export default async function HomePage() {
+  const posts = await getPublishedPosts();
   const visible = posts.slice(0, PER_PAGE);
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">

@@ -5,9 +5,9 @@ import {
   getPublishedPosts,
 } from "~/lib/content";
 
-export default function NotFound() {
-  const categories = getAllCategories();
-  const recent = getPublishedPosts().slice(0, 8);
+export default async function NotFound() {
+  const categories = await getAllCategories();
+  const recent = (await getPublishedPosts()).slice(0, 8);
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
