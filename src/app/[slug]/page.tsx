@@ -40,15 +40,16 @@ interface RouteParams {
   params: Promise<{ slug: string }>;
 }
 
-export function generateStaticParams() {
-  return getAllItems()
+export async function generateStaticParams() {
+  const items = await getAllItems();
+  return items
     .filter((it) => it.status === "publish")
     .map((it) => ({ slug: it.slug }));
 }
 
 export async function generateMetadata({ params }: RouteParams) {
   const { slug } = await params;
-  const item = getItemBySlug(slug);
+  const item = await getItemBySlug(slug);
   if (item?.status !== "publish") return {};
   return {
     title: item.title,
@@ -58,12 +59,12 @@ export async function generateMetadata({ params }: RouteParams) {
 
 export default async function ItemPage({ params }: RouteParams) {
   const { slug } = await params;
-  const item = getItemBySlug(slug);
+  const item = await getItemBySlug(slug);
   if (item?.status !== "publish") {
     // Many old WP pages were category landing pages with the same slug
     // as the category. Send those to the category archive instead of 404.
-    const matchingCategory = getAllCategories().find((c) => c.slug === slug);
-    if (matchingCategory) redirect(`/category/${slug}/`);
+    const cats = await getAllCategories();
+    if (cats.find((c) => c.slug === slug)) redirect(`/category/${slug}/`);
     notFound();
   }
 

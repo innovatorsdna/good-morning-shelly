@@ -10,8 +10,9 @@ interface RouteParams {
   params: Promise<{ slug: string }>;
 }
 
-export function generateStaticParams() {
-  return getAllCategories().map((c) => ({ slug: c.slug }));
+export async function generateStaticParams() {
+  const cats = await getAllCategories();
+  return cats.map((c) => ({ slug: c.slug }));
 }
 
 export async function generateMetadata({ params }: RouteParams) {
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: RouteParams) {
 
 export default async function CategoryPage({ params }: RouteParams) {
   const { slug } = await params;
-  const posts = getPostsByCategory(slug);
+  const posts = await getPostsByCategory(slug);
   if (posts.length === 0) notFound();
 
   return (

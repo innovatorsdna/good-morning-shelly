@@ -1,31 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, sqliteTable } from "drizzle-orm/sqlite-core";
-
-/**
- * Multi-project schema prefix helper
- */
-
-// Posts example table
-export const posts = sqliteTable(
-  "post",
-  (d) => ({
-    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
-    name: d.text({ length: 256 }),
-    createdById: d
-      .text({ length: 255 })
-      .notNull()
-      .references(() => user.id),
-    createdAt: d
-      .integer({ mode: "timestamp" })
-      .default(sql`(unixepoch())`)
-      .notNull(),
-    updatedAt: d.integer({ mode: "timestamp" }).$onUpdate(() => new Date()),
-  }),
-  (t) => [
-    index("created_by_idx").on(t.createdById),
-    index("name_idx").on(t.name),
-  ],
-);
+import { index, primaryKey, sqliteTable } from "drizzle-orm/sqlite-core";
 
 // Better Auth core tables
 export const user = sqliteTable("user", (d) => ({
@@ -38,6 +12,8 @@ export const user = sqliteTable("user", (d) => ({
   email: d.text({ length: 255 }).notNull().unique(),
   emailVerified: d.integer({ mode: "boolean" }).default(false),
   image: d.text({ length: 255 }),
+  // "user" | "admin"
+  role: d.text({ length: 32 }).notNull().default("user"),
   createdAt: d
     .integer({ mode: "timestamp" })
     .default(sql`(unixepoch())`)
@@ -48,6 +24,7 @@ export const user = sqliteTable("user", (d) => ({
 export const userRelations = relations(user, ({ many }) => ({
   account: many(account),
   session: many(session),
+  posts: many(post),
 }));
 
 export const account = sqliteTable(
@@ -132,3 +109,102 @@ export const verification = sqliteTable(
   }),
   (t) => [index("verification_identifier_idx").on(t.identifier)],
 );
+
+// Content tables
+//
+// `post` covers both blog posts and standalone pages, distinguished by `type`.
+// `source` is "mdx" for posts imported from the original WordPress export
+// (rendered as raw MDX, treated as read-only archive) or "tiptap" for posts
+// authored in the new admin editor (markdown produced by tiptap-markdown).
+export const post = sqliteTable(
+  "post",
+  (d) => ({
+    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    slug: d.text({ length: 255 }).notNull().unique(),
+    type: d.text({ length: 16 }).notNull().default("post"),
+    source: d.text({ length: 16 }).notNull().default("tiptap"),
+    title: d.text({ length: 512 }).notNull(),
+    body: d.text().notNull().default(""),
+    excerpt: d.text(),
+    cover: d.text({ length: 1024 }),
+    status: d.text({ length: 16 }).notNull().default("draft"),
+    sticky: d.integer({ mode: "boolean" }).notNull().default(false),
+    wpId: d.text({ length: 64 }),
+    authorId: d
+      .text({ length: 255 })
+      .references(() => user.id, { onDelete: "set null" }),
+    publishedAt: d.integer({ mode: "timestamp" }),
+    createdAt: d
+      .integer({ mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    updatedAt: d
+      .integer({ mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull()
+      .$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("post_status_idx").on(t.status),
+    index("post_type_idx").on(t.type),
+    index("post_published_at_idx").on(t.publishedAt),
+    index("post_author_id_idx").on(t.authorId),
+  ],
+);
+
+export const postRelations = relations(post, ({ one, many }) => ({
+  author: one(user, { fields: [post.authorId], references: [user.id] }),
+  categories: many(postCategory),
+  oldSlugs: many(postOldSlug),
+}));
+
+export const category = sqliteTable("category", (d) => ({
+  slug: d.text({ length: 255 }).notNull().primaryKey(),
+  name: d.text({ length: 255 }).notNull(),
+}));
+
+export const categoryRelations = relations(category, ({ many }) => ({
+  posts: many(postCategory),
+}));
+
+export const postCategory = sqliteTable(
+  "post_category",
+  (d) => ({
+    postId: d
+      .integer({ mode: "number" })
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    categorySlug: d
+      .text({ length: 255 })
+      .notNull()
+      .references(() => category.slug, { onDelete: "cascade" }),
+  }),
+  (t) => [
+    primaryKey({ columns: [t.postId, t.categorySlug] }),
+    index("post_category_category_idx").on(t.categorySlug),
+  ],
+);
+
+export const postCategoryRelations = relations(postCategory, ({ one }) => ({
+  post: one(post, { fields: [postCategory.postId], references: [post.id] }),
+  category: one(category, {
+    fields: [postCategory.categorySlug],
+    references: [category.slug],
+  }),
+}));
+
+export const postOldSlug = sqliteTable(
+  "post_old_slug",
+  (d) => ({
+    slug: d.text({ length: 255 }).notNull().primaryKey(),
+    postId: d
+      .integer({ mode: "number" })
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+  }),
+  (t) => [index("post_old_slug_post_id_idx").on(t.postId)],
+);
+
+export const postOldSlugRelations = relations(postOldSlug, ({ one }) => ({
+  post: one(post, { fields: [postOldSlug.postId], references: [post.id] }),
+}));

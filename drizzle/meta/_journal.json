@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1778193538807,
+      "tag": "0000_swift_famine",
+      "breakpoints": true
+    }
+  ]
+}

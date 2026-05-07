@@ -20,6 +20,7 @@
     "migrate:images": "tsx migration/02-images.ts",
     "migrate:content": "tsx migration/03-content.ts",
     "migrate:upload-images": "tsx migration/04-upload-s3.ts",
+    "migrate:mdx-to-db": "tsx migration/05-mdx-to-db.ts",
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit"
