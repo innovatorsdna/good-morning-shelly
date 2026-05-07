@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -nE '^__$|^_$' /Users/jershonlopez/Documents/ProjectFiles/fun/good-morning-shelly/content/posts/scripture-thoughts-hearing-the-voice-of-the-lord-through-the-book-of-mormon-2.mdx)",
+      "Bash(grep -rE '^_+$|^_+ _+$|^\\\\*+$|^\\\\*+ \\\\*+$' /Users/jershonlopez/Documents/ProjectFiles/fun/good-morning-shelly/content/ -l)",
+      "Bash(awk -F/ '{print $\\(NF-1\\)}')",
+      "Bash(git mv *)",
+      "Bash(sleep 8 && cat /tmp/gms-dev.log | tail -30)",
+      "Read(//private/tmp/**)",
+      "Bash(echo \"started $!\")",
+      "Bash(curl -sS -o /dev/null -w \"/ -> %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -sS -o /dev/null -w \"/about/ -> %{http_code}\\\\n\" http://localhost:3000/about/)",
+      "Bash(curl -sS -o /dev/null -w \"/the-gift-of-dawn-fear-of-driving-and-angelic-assistance/ -> %{http_code}\\\\n\" http://localhost:3000/the-gift-of-dawn-fear-of-driving-and-angelic-assistance/)",
+      "Bash(curl -sS -o /dev/null -w \"/category/faith/ -> %{http_code}\\\\n\" http://localhost:3000/category/faith/)",
+      "Bash(curl -sS -o /dev/null -w \"/categories/ -> %{http_code}\\\\n\" http://localhost:3000/categories/)",
+      "Bash(pnpm dev > /tmp/gms-dev.log 2>&1 & *)",
+      "Bash(/usr/bin/curl -sS -o /dev/null -w \"/ -> %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(/usr/bin/curl -sS -o /dev/null -w \"/about/ -> %{http_code}\\\\n\" http://localhost:3000/about/)",
+      "Bash(/usr/bin/curl -sS -o /dev/null -w \"/the-gift-of-dawn-fear-of-driving-and-angelic-assistance/ -> %{http_code}\\\\n\" http://localhost:3000/the-gift-of-dawn-fear-of-driving-and-angelic-assistance/)",
+      "Bash(/usr/bin/curl -sS -o /dev/null -w \"/category/faith/ -> %{http_code}\\\\n\" http://localhost:3000/category/faith/)",
+      "Bash(/usr/bin/curl -sS -o /dev/null -w \"/categories/ -> %{http_code}\\\\n\" http://localhost:3000/categories/)",
+      "Bash(/usr/bin/curl -sIL http://localhost:3000/wife-for-life-changed-my-life-and-it-can-change-yours-too/)",
+      "Bash(/usr/bin/curl -sS http://localhost:3000/the-gift-of-dawn-fear-of-driving-and-angelic-assistance/)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(/usr/bin/curl -sS -o /dev/null -w \"/marriage/ \\(skipped page; should redirect to category\\) -> %{http_code}\\\\n\" http://localhost:3000/marriage/)",
+      "Bash(/usr/bin/curl -sIL http://localhost:3000/marriage/)",
+      "Bash(/usr/bin/curl -sS -o /dev/null -w \"/totally-made-up-slug/ \\(should 404\\) -> %{http_code}\\\\n\" http://localhost:3000/totally-made-up-slug/)",
+      "Bash(/usr/bin/curl -sS http://localhost:3000/totally-made-up-slug/)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp"
+    ]
+  }
+}

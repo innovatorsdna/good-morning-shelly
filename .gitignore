@@ -44,3 +44,9 @@ yarn-error.log*
 
 # idea files
 .idea
+
+# WP migration source export (symlinked or copied in locally)
+/migration/wxr.xml
+
+# Migrated images: regenerated from WXR via `pnpm migrate:images`. Hosting TBD.
+/public/uploads/
