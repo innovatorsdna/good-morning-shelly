@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { XMLParser } from "fast-xml-parser";
 import fs from "node:fs";
 import fsp from "node:fs/promises";

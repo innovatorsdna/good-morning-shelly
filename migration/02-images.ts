@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { XMLParser } from "fast-xml-parser";
 import crypto from "node:crypto";
 import fs from "node:fs";
