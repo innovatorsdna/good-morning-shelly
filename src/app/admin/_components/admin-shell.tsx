@@ -31,6 +31,18 @@ export function AdminShell({ email, children }: Props) {
             Pages
           </Link>
           <Link
+            className="rounded px-3 py-2 hover:bg-neutral-100"
+            href="/admin/categories"
+          >
+            Categories
+          </Link>
+          <Link
+            className="rounded px-3 py-2 hover:bg-neutral-100"
+            href="/admin/media"
+          >
+            Media
+          </Link>
+          <Link
             className="mt-6 rounded px-3 py-2 text-neutral-500 hover:bg-neutral-100"
             href="/"
           >

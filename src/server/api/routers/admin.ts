@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, desc, eq, like, ne, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, like, ne, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -12,7 +12,7 @@ import {
   postCategory,
   postOldSlug,
 } from "~/server/db/schema";
-import { presignUpload } from "~/server/s3";
+import { deleteMediaObject, listMediaObjects, presignUpload } from "~/server/s3";
 
 const STATUSES = ["publish", "draft", "private"] as const;
 const TYPES = ["post", "page"] as const;
@@ -64,6 +64,24 @@ async function ensureCategories(db: typeof dbType, slugs: string[]) {
 }
 
 export const adminRouter = createTRPCRouter({
+  recentEdits: adminProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(50).default(10) }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db
+        .select({
+          id: postTable.id,
+          slug: postTable.slug,
+          title: postTable.title,
+          status: postTable.status,
+          source: postTable.source,
+          type: postTable.type,
+          updatedAt: postTable.updatedAt,
+        })
+        .from(postTable)
+        .orderBy(desc(postTable.updatedAt))
+        .limit(input.limit);
+    }),
+
   stats: adminProcedure.query(async ({ ctx }) => {
     const grouped = await ctx.db
       .select({
@@ -396,5 +414,252 @@ export const adminRouter = createTRPCRouter({
         filename: input.filename,
         contentType: input.contentType,
       });
+    }),
+
+  // ---------- Bulk actions ----------
+  bulkUpdateStatus: adminProcedure
+    .input(
+      z.object({
+        ids: z.array(z.number().int()).min(1).max(500),
+        status: z.enum(STATUSES),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const rows = await ctx.db
+        .select({
+          id: postTable.id,
+          slug: postTable.slug,
+          source: postTable.source,
+        })
+        .from(postTable)
+        .where(inArray(postTable.id, input.ids));
+      const editable = rows.filter((r) => r.source !== "mdx");
+      if (editable.length === 0) {
+        return { updated: 0, skipped: rows.length };
+      }
+      const editableIds = editable.map((r) => r.id);
+      await ctx.db
+        .update(postTable)
+        .set({
+          status: input.status,
+          updatedAt: new Date(),
+          ...(input.status === "publish" ? { publishedAt: new Date() } : {}),
+        })
+        .where(inArray(postTable.id, editableIds));
+
+      const cats = await ctx.db
+        .select({ slug: postCategory.categorySlug })
+        .from(postCategory)
+        .where(inArray(postCategory.postId, editableIds));
+      revalidatePublicPaths(
+        editable.map((r) => r.slug),
+        cats.map((c) => c.slug),
+      );
+      return {
+        updated: editable.length,
+        skipped: rows.length - editable.length,
+      };
+    }),
+
+  bulkDelete: adminProcedure
+    .input(z.object({ ids: z.array(z.number().int()).min(1).max(500) }))
+    .mutation(async ({ ctx, input }) => {
+      const rows = await ctx.db
+        .select({
+          id: postTable.id,
+          slug: postTable.slug,
+          source: postTable.source,
+        })
+        .from(postTable)
+        .where(inArray(postTable.id, input.ids));
+      const editable = rows.filter((r) => r.source !== "mdx");
+      if (editable.length === 0) {
+        return { deleted: 0, skipped: rows.length };
+      }
+      const editableIds = editable.map((r) => r.id);
+      const cats = await ctx.db
+        .select({ slug: postCategory.categorySlug })
+        .from(postCategory)
+        .where(inArray(postCategory.postId, editableIds));
+      await ctx.db
+        .delete(postTable)
+        .where(inArray(postTable.id, editableIds));
+      revalidatePublicPaths(
+        editable.map((r) => r.slug),
+        cats.map((c) => c.slug),
+      );
+      return {
+        deleted: editable.length,
+        skipped: rows.length - editable.length,
+      };
+    }),
+
+  // ---------- Categories admin ----------
+  /** Categories with usage counts. */
+  categoriesWithCounts: adminProcedure.query(async ({ ctx }) => {
+    const all = await ctx.db
+      .select()
+      .from(categoryTable)
+      .orderBy(asc(categoryTable.slug));
+    const counts = await ctx.db
+      .select({ slug: postCategory.categorySlug, c: count() })
+      .from(postCategory)
+      .groupBy(postCategory.categorySlug);
+    const countBySlug = new Map(counts.map((c) => [c.slug, c.c]));
+    return all.map((c) => ({ ...c, count: countBySlug.get(c.slug) ?? 0 }));
+  }),
+
+  createCategory: adminProcedure
+    .input(
+      z.object({
+        slug: z
+          .string()
+          .min(1)
+          .max(255)
+          .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+        name: z.string().min(1).max(255),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const dup = await ctx.db
+        .select({ slug: categoryTable.slug })
+        .from(categoryTable)
+        .where(eq(categoryTable.slug, input.slug))
+        .limit(1);
+      if (dup.length > 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Category already exists.",
+        });
+      }
+      await ctx.db.insert(categoryTable).values(input);
+      return { slug: input.slug };
+    }),
+
+  renameCategory: adminProcedure
+    .input(
+      z.object({
+        slug: z.string().min(1),
+        name: z.string().min(1).max(255),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db
+        .select()
+        .from(categoryTable)
+        .where(eq(categoryTable.slug, input.slug))
+        .limit(1);
+      if (existing.length === 0) throw new TRPCError({ code: "NOT_FOUND" });
+      await ctx.db
+        .update(categoryTable)
+        .set({ name: input.name })
+        .where(eq(categoryTable.slug, input.slug));
+      revalidatePublicPaths([], [input.slug]);
+      return { slug: input.slug };
+    }),
+
+  deleteCategory: adminProcedure
+    .input(z.object({ slug: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      // Cascade via foreign key (post_category.categorySlug -> category.slug).
+      // Posts themselves are unaffected; they just lose this category.
+      await ctx.db
+        .delete(categoryTable)
+        .where(eq(categoryTable.slug, input.slug));
+      revalidatePublicPaths([], [input.slug]);
+      return { slug: input.slug };
+    }),
+
+  /**
+   * Move every post tagged `from` to instead use `to`, then delete `from`.
+   * Both categories must already exist.
+   */
+  mergeCategory: adminProcedure
+    .input(
+      z.object({
+        from: z.string().min(1),
+        to: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.from === input.to) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Source and target are the same.",
+        });
+      }
+      const both = await ctx.db
+        .select()
+        .from(categoryTable)
+        .where(inArray(categoryTable.slug, [input.from, input.to]));
+      if (both.length !== 2) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "One or both categories don't exist.",
+        });
+      }
+
+      // Posts already linked to `to` shouldn't get duplicated when we move
+      // the `from` link over. Find those and just delete the `from` link
+      // for them.
+      const conflicts = await ctx.db
+        .select({ postId: postCategory.postId })
+        .from(postCategory)
+        .where(eq(postCategory.categorySlug, input.to));
+      const conflictIds = new Set(conflicts.map((c) => c.postId));
+
+      const fromLinks = await ctx.db
+        .select({ postId: postCategory.postId })
+        .from(postCategory)
+        .where(eq(postCategory.categorySlug, input.from));
+
+      const toReassign = fromLinks
+        .map((l) => l.postId)
+        .filter((id) => !conflictIds.has(id));
+
+      // Drop `from` links entirely.
+      await ctx.db
+        .delete(postCategory)
+        .where(eq(postCategory.categorySlug, input.from));
+
+      // Insert `to` links for the non-conflict posts.
+      if (toReassign.length > 0) {
+        await ctx.db.insert(postCategory).values(
+          toReassign.map((postId) => ({
+            postId,
+            categorySlug: input.to,
+          })),
+        );
+      }
+
+      // Delete the now-orphaned `from` category.
+      await ctx.db
+        .delete(categoryTable)
+        .where(eq(categoryTable.slug, input.from));
+
+      revalidatePublicPaths([], [input.from, input.to]);
+      return { moved: toReassign.length };
+    }),
+
+  // ---------- Media library ----------
+  listMedia: adminProcedure
+    .input(
+      z.object({
+        cursor: z.string().optional(),
+        limit: z.number().int().min(1).max(100).default(50),
+      }),
+    )
+    .query(async ({ input }) => {
+      return listMediaObjects({
+        continuationToken: input.cursor,
+        limit: input.limit,
+      });
+    }),
+
+  deleteMedia: adminProcedure
+    .input(z.object({ key: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      await deleteMediaObject(input.key);
+      return { key: input.key };
     }),
 });

@@ -1,9 +1,13 @@
 import Link from "next/link";
 
+import { formatPostDate } from "~/lib/content";
 import { api } from "~/trpc/server";
 
 export default async function AdminDashboard() {
-  const stats = await api.admin.stats();
+  const [stats, recent] = await Promise.all([
+    api.admin.stats(),
+    api.admin.recentEdits({ limit: 10 }),
+  ]);
   const c = stats.counts;
 
   const tiles: Array<{ label: string; value: number; href?: string }> = [
@@ -75,6 +79,59 @@ export default async function AdminDashboard() {
             </div>
           );
         })}
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Recent edits</h2>
+        </div>
+        <ul className="mt-3 divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
+          {recent.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-neutral-500">
+              No edits yet.
+            </li>
+          )}
+          {recent.map((r) => {
+            const editHref =
+              r.source === "mdx"
+                ? null
+                : r.type === "page"
+                  ? `/admin/pages/${r.id}/edit`
+                  : `/admin/posts/${r.id}/edit`;
+            const inner = (
+              <div className="flex items-baseline gap-3">
+                <span className="font-medium text-neutral-900">
+                  {r.title || <em>(untitled)</em>}
+                </span>
+                <span className="text-xs text-neutral-500">/{r.slug}</span>
+                {r.source === "mdx" && (
+                  <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
+                    archived
+                  </span>
+                )}
+                <span className="ml-auto text-xs text-neutral-500">
+                  {r.updatedAt && formatPostDate(r.updatedAt.toISOString())}
+                </span>
+              </div>
+            );
+            return (
+              <li key={r.id} className="px-4 py-2 text-sm">
+                {editHref ? (
+                  <Link
+                    href={editHref}
+                    className="block rounded -mx-2 px-2 py-1 hover:bg-neutral-100"
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div className="-mx-2 px-2 py-1 text-neutral-500">
+                    {inner}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       </section>
     </main>
   );

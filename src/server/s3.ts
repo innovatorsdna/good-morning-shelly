@@ -1,6 +1,8 @@
 import "server-only";
 
 import {
+  DeleteObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
   type PutObjectCommandInput,
@@ -83,4 +85,64 @@ export async function presignUpload({
     uploadUrl,
     publicPath: `/${key}`,
   };
+}
+
+export interface MediaObject {
+  /** S3 object key, e.g. "uploads/2026/05/abc123-foo.jpg". */
+  key: string;
+  /** Stable site path used in post bodies, e.g. "/uploads/2026/05/...". */
+  publicPath: string;
+  size: number;
+  lastModified: string | null;
+}
+
+export interface ListMediaResult {
+  objects: MediaObject[];
+  nextCursor: string | null;
+}
+
+export async function listMediaObjects({
+  continuationToken,
+  limit = 50,
+}: {
+  continuationToken?: string;
+  limit?: number;
+}): Promise<ListMediaResult> {
+  if (!env.S3_BUCKET) {
+    throw new Error("S3_BUCKET is not configured.");
+  }
+  const res = await getClient().send(
+    new ListObjectsV2Command({
+      Bucket: env.S3_BUCKET,
+      Prefix: "uploads/",
+      MaxKeys: limit,
+      ContinuationToken: continuationToken,
+    }),
+  );
+  const objects: MediaObject[] = (res.Contents ?? [])
+    .filter((c) => typeof c.Key === "string" && !c.Key.endsWith("/"))
+    .map((c) => ({
+      key: c.Key!,
+      publicPath: `/${c.Key}`,
+      size: c.Size ?? 0,
+      lastModified: c.LastModified
+        ? c.LastModified.toISOString()
+        : null,
+    }))
+    // Newest first.
+    .sort((a, b) => (a.lastModified ?? "") < (b.lastModified ?? "") ? 1 : -1);
+
+  return {
+    objects,
+    nextCursor: res.IsTruncated ? res.NextContinuationToken ?? null : null,
+  };
+}
+
+export async function deleteMediaObject(key: string): Promise<void> {
+  if (!env.S3_BUCKET) {
+    throw new Error("S3_BUCKET is not configured.");
+  }
+  await getClient().send(
+    new DeleteObjectCommand({ Bucket: env.S3_BUCKET, Key: key }),
+  );
 }

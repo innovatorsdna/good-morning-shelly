@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { PostsListFilters } from "~/app/admin/_components/posts-list-filters";
-import { formatPostDate } from "~/lib/content";
+import { PostsListTable } from "~/app/admin/_components/posts-list-table";
 import { api } from "~/trpc/server";
 
 interface SearchParams {
@@ -65,60 +65,18 @@ export async function PostsListView({
         {total} {type === "post" ? "posts" : "pages"}
       </p>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-neutral-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
-            <tr>
-              <th className="px-3 py-2">Title</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Date</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td
-                  colSpan={4}
-                  className="px-3 py-8 text-center text-neutral-500"
-                >
-                  No {type === "post" ? "posts" : "pages"} found.
-                </td>
-              </tr>
-            )}
-            {rows.map((r) => (
-              <tr key={r.id} className="border-b border-neutral-100 last:border-0">
-                <td className="px-3 py-2">
-                  <div className="font-medium">
-                    {r.title || <em>(untitled)</em>}
-                  </div>
-                  <div className="text-xs text-neutral-500">/{r.slug}</div>
-                </td>
-                <td className="px-3 py-2">
-                  <StatusBadge status={r.status} source={r.source} />
-                </td>
-                <td className="px-3 py-2 text-xs text-neutral-500">
-                  {r.publishedAt
-                    ? formatPostDate(r.publishedAt.toISOString())
-                    : "—"}
-                </td>
-                <td className="px-3 py-2 text-right">
-                  {r.source === "mdx" ? (
-                    <span className="text-xs text-neutral-400">read-only</span>
-                  ) : (
-                    <Link
-                      href={`${basePath}/${r.id}/edit`}
-                      className="text-sm text-neutral-700 underline underline-offset-4 hover:text-neutral-900"
-                    >
-                      Edit
-                    </Link>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <PostsListTable
+        type={type}
+        rows={rows.map((r) => ({
+          id: r.id,
+          slug: r.slug,
+          title: r.title,
+          status: r.status,
+          source: r.source,
+          publishedAt: r.publishedAt ? r.publishedAt.toISOString() : null,
+          type: r.type,
+        }))}
+      />
 
       {totalPages > 1 && (
         <Pagination
@@ -130,27 +88,6 @@ export async function PostsListView({
         />
       )}
     </main>
-  );
-}
-
-function StatusBadge({ status, source }: { status: string; source: string }) {
-  const cls =
-    status === "publish"
-      ? "bg-green-100 text-green-800"
-      : status === "private"
-        ? "bg-amber-100 text-amber-800"
-        : "bg-neutral-200 text-neutral-700";
-  return (
-    <div className="flex flex-wrap gap-1">
-      <span className={`rounded px-2 py-0.5 text-xs font-medium ${cls}`}>
-        {status}
-      </span>
-      {source === "mdx" && (
-        <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-          archived
-        </span>
-      )}
-    </div>
   );
 }
 
