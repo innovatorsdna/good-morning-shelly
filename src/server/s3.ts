@@ -1,13 +1,12 @@
 import "server-only";
 
+import { createHash, createHmac } from "node:crypto";
+
 import {
   DeleteObjectCommand,
   ListObjectsV2Command,
-  PutObjectCommand,
   S3Client,
-  type PutObjectCommandInput,
 } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { env } from "~/env";
 
@@ -57,8 +56,15 @@ export async function presignUpload({
   filename,
   contentType,
 }: PresignParams): Promise<PresignResult> {
-  if (!env.S3_BUCKET) {
-    throw new Error("S3_BUCKET is not configured.");
+  if (
+    !env.S3_BUCKET ||
+    !env.S3_REGION ||
+    !env.S3_ACCESS_KEY_ID ||
+    !env.S3_SECRET_ACCESS_KEY
+  ) {
+    throw new Error(
+      "S3 is not configured. Set S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY.",
+    );
   }
 
   const now = new Date();
@@ -71,20 +77,110 @@ export async function presignUpload({
   const rand = Math.random().toString(36).slice(2, 8);
   const key = `uploads/${yyyy}/${mm}/${rand}-${safe}`;
 
-  const params: PutObjectCommandInput = {
-    Bucket: env.S3_BUCKET,
-    Key: key,
-    ContentType: contentType,
-  };
-
-  const uploadUrl = await getSignedUrl(getClient(), new PutObjectCommand(params), {
-    expiresIn: 60 * 5,
+  const uploadUrl = presignS3PutUrl({
+    region: env.S3_REGION,
+    accessKeyId: env.S3_ACCESS_KEY_ID,
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    bucket: env.S3_BUCKET,
+    key,
+    contentType,
+    expiresInSeconds: 60 * 5,
+    now,
   });
 
   return {
     uploadUrl,
     publicPath: `/${key}`,
   };
+}
+
+// ---- AWS SigV4 PUT presigner --------------------------------------------
+// Self-contained so we don't pull in @aws-sdk/s3-request-presigner. Mirrors
+// the headers the SDK signs for a PutObjectCommand with a ContentType: the
+// uploader must send the same `Content-Type` header it asked us to sign.
+
+function rfc3986Encode(value: string): string {
+  return encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
+function hmac(key: Buffer | string, data: string): Buffer {
+  return createHmac("sha256", key).update(data, "utf8").digest();
+}
+
+function sha256Hex(data: string): string {
+  return createHash("sha256").update(data, "utf8").digest("hex");
+}
+
+function presignS3PutUrl({
+  region,
+  accessKeyId,
+  secretAccessKey,
+  bucket,
+  key,
+  contentType,
+  expiresInSeconds,
+  now,
+}: {
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucket: string;
+  key: string;
+  contentType: string;
+  expiresInSeconds: number;
+  now: Date;
+}): string {
+  const host = `${bucket}.s3.${region}.amazonaws.com`;
+  const amzDate = now.toISOString().replace(/[-:]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const credentialScope = `${dateStamp}/${region}/s3/aws4_request`;
+  const signedHeaders = "content-type;host";
+
+  const canonicalUri =
+    "/" + key.split("/").map(rfc3986Encode).join("/");
+
+  const queryPairs: [string, string][] = [
+    ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
+    ["X-Amz-Credential", `${accessKeyId}/${credentialScope}`],
+    ["X-Amz-Date", amzDate],
+    ["X-Amz-Expires", String(expiresInSeconds)],
+    ["X-Amz-SignedHeaders", signedHeaders],
+  ];
+  const canonicalQuery = queryPairs
+    .slice()
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${rfc3986Encode(k)}=${rfc3986Encode(v)}`)
+    .join("&");
+
+  const canonicalHeaders = `content-type:${contentType}\nhost:${host}\n`;
+  const canonicalRequest = [
+    "PUT",
+    canonicalUri,
+    canonicalQuery,
+    canonicalHeaders,
+    signedHeaders,
+    "UNSIGNED-PAYLOAD",
+  ].join("\n");
+
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n");
+
+  const kDate = hmac(`AWS4${secretAccessKey}`, dateStamp);
+  const kRegion = hmac(kDate, region);
+  const kService = hmac(kRegion, "s3");
+  const kSigning = hmac(kService, "aws4_request");
+  const signature = createHmac("sha256", kSigning)
+    .update(stringToSign, "utf8")
+    .digest("hex");
+
+  return `https://${host}${canonicalUri}?${canonicalQuery}&X-Amz-Signature=${signature}`;
 }
 
 export interface MediaObject {
