@@ -17,6 +17,11 @@ const redirects = JSON.parse(
 /** @type {import("next").NextConfig} */
 const config = {
   trailingSlash: true,
+  // Trailing-slash canonicalisation is handled manually in `src/middleware.ts`
+  // so that `/api/*` routes (Better Auth's catch-all in particular) keep
+  // working — the built-in 308 redirect appends a slash that the
+  // `[...all]` route then 404s on.
+  skipTrailingSlashRedirect: true,
   async redirects() {
     return redirects.map((r) => ({
       source: r.from,
