@@ -19,6 +19,8 @@ interface InitialPayload {
 interface Props {
   initial: InitialPayload;
   uploadsBaseUrl: string;
+  /** Surfaced when the initial server-side load failed (e.g. S3 unreachable). */
+  loadError?: string | null;
 }
 
 const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp|avif|svg|bmp)$/i;
@@ -36,10 +38,10 @@ function rewrite(uploadsBase: string, publicPath: string): string {
   return publicPath;
 }
 
-export function MediaLibrary({ initial, uploadsBaseUrl }: Props) {
+export function MediaLibrary({ initial, uploadsBaseUrl, loadError }: Props) {
   const [objects, setObjects] = useState<MediaObject[]>(initial.objects);
   const [cursor, setCursor] = useState<string | null>(initial.nextCursor);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(loadError ?? null);
   const [copied, setCopied] = useState<string | null>(null);
 
   const utils = api.useUtils();

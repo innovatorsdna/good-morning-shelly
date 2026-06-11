@@ -12,19 +12,29 @@ import { env } from "~/env";
 
 let cached: S3Client | null = null;
 
+/**
+ * S3 connection settings, accepting either the project-specific `S3_*` names or
+ * the conventional AWS SDK `AWS_*` names (the `S3_*` ones win when both exist).
+ */
+function s3Config() {
+  return {
+    region: env.S3_REGION ?? env.AWS_REGION,
+    accessKeyId: env.S3_ACCESS_KEY_ID ?? env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY ?? env.AWS_SECRET_ACCESS_KEY,
+  };
+}
+
 function getClient(): S3Client {
   if (cached) return cached;
-  if (!env.S3_REGION || !env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY) {
+  const { region, accessKeyId, secretAccessKey } = s3Config();
+  if (!region || !accessKeyId || !secretAccessKey) {
     throw new Error(
-      "S3 credentials are not configured. Set S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY.",
+      "S3 credentials are not configured. Set S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY (or AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).",
     );
   }
   cached = new S3Client({
-    region: env.S3_REGION,
-    credentials: {
-      accessKeyId: env.S3_ACCESS_KEY_ID,
-      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-    },
+    region,
+    credentials: { accessKeyId, secretAccessKey },
   });
   return cached;
 }
@@ -56,14 +66,10 @@ export async function presignUpload({
   filename,
   contentType,
 }: PresignParams): Promise<PresignResult> {
-  if (
-    !env.S3_BUCKET ||
-    !env.S3_REGION ||
-    !env.S3_ACCESS_KEY_ID ||
-    !env.S3_SECRET_ACCESS_KEY
-  ) {
+  const { region, accessKeyId, secretAccessKey } = s3Config();
+  if (!env.S3_BUCKET || !region || !accessKeyId || !secretAccessKey) {
     throw new Error(
-      "S3 is not configured. Set S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY.",
+      "S3 is not configured. Set S3_BUCKET plus S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY (or AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY).",
     );
   }
 
@@ -78,9 +84,9 @@ export async function presignUpload({
   const key = `uploads/${yyyy}/${mm}/${rand}-${safe}`;
 
   const uploadUrl = presignS3PutUrl({
-    region: env.S3_REGION,
-    accessKeyId: env.S3_ACCESS_KEY_ID,
-    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    region,
+    accessKeyId,
+    secretAccessKey,
     bucket: env.S3_BUCKET,
     key,
     contentType,
