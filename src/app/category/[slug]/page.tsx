@@ -26,21 +26,23 @@ export default async function CategoryPage({ params }: RouteParams) {
   if (posts.length === 0) notFound();
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <header className="mb-8 border-b border-neutral-200 pb-4">
-        <p className="text-sm uppercase tracking-wide text-neutral-500">
+    <main className="px-6 pt-8">
+      <header className="mb-10 border-b border-gms-line pb-5 text-center">
+        <p className="m-0 mb-2 text-[10px] font-bold tracking-[0.2em] text-gms-rose uppercase">
           Category
         </p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-neutral-900">
+        <h1 className="m-0 font-serif text-[32px] leading-[1.15] font-semibold text-gms-ink">
           {getCategoryDisplayName(slug)}
         </h1>
-        <p className="mt-2 text-sm text-neutral-500">
+        <p className="m-0 mt-2 text-[12px] font-light tracking-[0.04em] text-gms-muted">
           {posts.length} {posts.length === 1 ? "post" : "posts"}
         </p>
       </header>
-      {posts.map((p) => (
-        <PostCard key={p.slug} post={p} />
-      ))}
+      <div className="grid grid-cols-2 gap-7">
+        {posts.map((p, i) => (
+          <PostCard key={p.slug} post={p} index={i} />
+        ))}
+      </div>
     </main>
   );
 }

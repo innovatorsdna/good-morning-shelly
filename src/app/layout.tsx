@@ -1,7 +1,7 @@
 import "~/styles/globals.css";
 
 import { type Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Lato, Playfair_Display } from "next/font/google";
 
 import { SiteFooter } from "~/components/site-footer";
 import { SiteHeader } from "~/components/site-header";
@@ -13,21 +13,31 @@ export const metadata: Metadata = {
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
-const geist = Geist({
+const lato = Lato({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
+  weight: ["300", "400", "700"],
+  variable: "--font-lato",
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-playfair",
 });
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable}`}>
-      <body className="bg-white font-sans text-neutral-900 antialiased">
+    <html lang="en" className={`${lato.variable} ${playfair.variable}`}>
+      <body className="bg-gms-cream font-sans text-gms-ink antialiased">
         <TRPCReactProvider>
-          <SiteHeader />
-          {children}
-          <SiteFooter />
+          <div className="mx-auto max-w-[680px] px-0 pb-12">
+            <SiteHeader />
+            {children}
+            <SiteFooter />
+          </div>
         </TRPCReactProvider>
       </body>
     </html>

@@ -15,30 +15,36 @@ export default async function ArchivePage() {
   const years = [...byYear.keys()].sort((a, b) => b.localeCompare(a));
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <h1 className="text-3xl font-bold tracking-tight">Archive</h1>
-      <p className="mt-2 text-sm text-neutral-500">{posts.length} posts</p>
+    <main className="px-6 pt-8">
+      <header className="mb-6 text-center">
+        <p className="m-0 mb-2 text-[10px] font-bold tracking-[0.2em] text-gms-rose uppercase">
+          Archive
+        </p>
+        <h1 className="m-0 font-serif text-[32px] font-semibold text-gms-ink">
+          Every post
+        </h1>
+        <p className="m-0 mt-2 text-[12px] font-light tracking-[0.04em] text-gms-muted">
+          {posts.length} posts
+        </p>
+      </header>
       {years.map((year) => (
-        <section key={year} className="mt-10">
-          <h2 className="border-b border-neutral-200 pb-2 text-2xl font-semibold">
+        <section key={year} className="mt-8">
+          <h2 className="m-0 border-b border-gms-line pb-2 font-serif text-[22px] font-semibold text-gms-ink">
             {year}
           </h2>
-          <ul className="mt-4 space-y-2">
+          <ul className="m-0 mt-4 list-none space-y-3 p-0">
             {(byYear.get(year) ?? []).map((p) => (
               <li
                 key={p.slug}
-                className="flex items-baseline gap-4 text-neutral-800"
+                className="flex items-baseline gap-4 text-gms-stone"
               >
                 <time
                   dateTime={p.date}
-                  className="w-32 shrink-0 text-sm text-neutral-500"
+                  className="w-32 shrink-0 text-[12px] font-light text-gms-muted"
                 >
                   {formatPostDate(p.date)}
                 </time>
-                <Link
-                  href={`/${p.slug}/`}
-                  className="hover:text-neutral-600"
-                >
+                <Link href={`/${p.slug}/`} className="hover:text-gms-sage">
                   {p.title}
                 </Link>
               </li>
