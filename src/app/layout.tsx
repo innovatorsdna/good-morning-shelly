@@ -3,8 +3,7 @@ import "~/styles/globals.css";
 import { type Metadata } from "next";
 import { Lato, Playfair_Display } from "next/font/google";
 
-import { SiteFooter } from "~/components/site-footer";
-import { SiteHeader } from "~/components/site-header";
+import { SiteChrome } from "~/app/_components/site-chrome";
 import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
@@ -33,11 +32,7 @@ export default function RootLayout({
     <html lang="en" className={`${lato.variable} ${playfair.variable}`}>
       <body className="bg-gms-cream font-sans text-gms-ink antialiased">
         <TRPCReactProvider>
-          <div className="mx-auto max-w-[680px] px-0 pb-12">
-            <SiteHeader />
-            {children}
-            <SiteFooter />
-          </div>
+          <SiteChrome>{children}</SiteChrome>
         </TRPCReactProvider>
       </body>
     </html>
