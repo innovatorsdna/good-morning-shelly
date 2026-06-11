@@ -69,16 +69,16 @@ export default async function ItemPage({ params }: RouteParams) {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <article className="prose prose-neutral max-w-none">
-        <header className="not-prose mb-8">
-          <h1 className="text-4xl font-bold tracking-tight text-neutral-900">
+    <main className="px-6 pt-8">
+      <article className="prose prose-neutral max-w-none prose-headings:font-serif prose-headings:text-gms-ink prose-a:text-gms-sage prose-p:text-gms-stone">
+        <header className="not-prose mb-8 text-center">
+          <h1 className="font-serif text-[34px] leading-[1.2] font-semibold text-gms-ink">
             {item.title}
           </h1>
           {item.type === "post" && item.date && (
             <time
               dateTime={item.date}
-              className="mt-2 block text-sm text-neutral-500"
+              className="mt-3 block text-[12px] font-light tracking-[0.04em] text-gms-muted"
             >
               {formatPostDate(item.date)}
             </time>
@@ -86,12 +86,12 @@ export default async function ItemPage({ params }: RouteParams) {
           {item.type === "post" &&
             item.categories &&
             item.categories.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2 text-sm">
+              <div className="mt-4 flex flex-wrap justify-center gap-2 text-sm">
                 {item.categories.map((c) => (
                   <Link
                     key={c}
                     href={`/category/${c}/`}
-                    className="rounded-full bg-neutral-100 px-3 py-1 text-neutral-700 hover:bg-neutral-200"
+                    className="rounded-full bg-gms-panel px-3 py-1 text-[12px] font-bold tracking-[0.1em] text-gms-stone uppercase no-underline hover:text-gms-sage"
                   >
                     {getCategoryDisplayName(c)}
                   </Link>

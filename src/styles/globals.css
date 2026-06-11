@@ -2,6 +2,25 @@
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
+  --font-sans: var(--font-lato), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-serif: var(--font-playfair), ui-serif, Georgia, Cambria, "Times New Roman",
+    Times, serif;
+
+  /* Good Morning Shelly editorial palette */
+  --color-gms-cream: #faf7f2;
+  --color-gms-ink: #2c2a24;
+  --color-gms-stone: #5c5a54;
+  --color-gms-muted: #9a9890;
+  --color-gms-line: #d9d3c9;
+  --color-gms-panel: #f0ebe3;
+  --color-gms-sage: #7a9e7e;
+  --color-gms-rose: #c9857a;
+  --color-gms-gold: #b0986a;
+  --color-gms-sky: #7a9ebf;
+}
+
+body {
+  background: var(--color-gms-cream);
+  color: var(--color-gms-ink);
 }

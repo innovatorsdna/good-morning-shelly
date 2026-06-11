@@ -1,24 +1,62 @@
 import Link from "next/link";
-import { PostCard } from "~/components/post-card";
+import { FeaturedPost, PostCard } from "~/components/post-card";
 import { getPublishedPosts } from "~/lib/content";
+import { TOPICS } from "~/lib/topics";
 
-const PER_PAGE = 30;
+const GRID_COUNT = 4;
 
 export default async function HomePage() {
   const posts = await getPublishedPosts();
-  const visible = posts.slice(0, PER_PAGE);
+  const [featured, ...rest] = posts;
+  const grid = rest.slice(0, GRID_COUNT);
+  const hasMore = posts.length > 1 + GRID_COUNT;
+
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      {visible.map((p) => (
-        <PostCard key={p.slug} post={p} />
-      ))}
-      {posts.length > PER_PAGE && (
-        <div className="mt-10 text-center">
+    <main className="px-6 pt-8">
+      {featured && <FeaturedPost post={featured} />}
+
+      {grid.length > 0 && (
+        <>
+          <p className="m-0 mb-6 text-[10px] font-bold tracking-[0.2em] text-gms-rose uppercase">
+            Recent posts
+          </p>
+          <div className="mb-10 grid grid-cols-2 gap-7 border-b border-gms-line pb-10">
+            {grid.map((p, i) => (
+              <PostCard key={p.slug} post={p} index={i} />
+            ))}
+          </div>
+        </>
+      )}
+
+      <section className="mb-6 rounded-lg bg-gms-panel p-5">
+        <p className="m-0 mb-4 border-b border-gms-line pb-2 font-serif text-[15px] font-semibold text-gms-ink">
+          Browse by topic
+        </p>
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          {TOPICS.map((t) => (
+            <li key={t.slug}>
+              <Link
+                href={`/category/${t.slug}/`}
+                className="flex items-center gap-2 text-[13px] text-gms-stone hover:text-gms-ink"
+              >
+                <span
+                  className="h-[7px] w-[7px] shrink-0 rounded-full"
+                  style={{ background: t.color }}
+                />
+                {t.label} — {t.blurb}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {hasMore && (
+        <div className="text-center">
           <Link
             href="/archive/"
-            className="text-sm font-medium text-neutral-700 underline underline-offset-4 hover:text-neutral-900"
+            className="border-b-[1.5px] border-gms-rose pb-px text-[12px] font-bold tracking-[0.1em] text-gms-rose uppercase"
           >
-            View all {posts.length} posts in the archive →
+            View all {posts.length} posts →
           </Link>
         </div>
       )}
