@@ -71,6 +71,18 @@ export default async function ItemPage({ params }: RouteParams) {
   return (
     <main className="px-6 pt-8">
       <article className="prose prose-neutral max-w-none prose-headings:font-serif prose-headings:text-gms-ink prose-a:text-gms-sage prose-p:text-gms-stone">
+        {item.cover && (
+          <div className="not-prose mb-8 overflow-hidden rounded-md">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={rewriteUploadsSrc(item.cover)}
+              alt={item.title}
+              loading="eager"
+              decoding="async"
+              className="max-h-[480px] w-full object-cover"
+            />
+          </div>
+        )}
         <header className="not-prose mb-8 text-center">
           <h1 className="font-serif text-[34px] leading-[1.2] font-semibold text-gms-ink">
             {item.title}
