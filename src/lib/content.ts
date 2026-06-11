@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 import { db } from "~/server/db";
 import {
@@ -82,7 +82,9 @@ function rowToItem(
   };
 }
 
-async function loadCategoriesFor(postIds: number[]): Promise<Map<number, string[]>> {
+async function loadCategoriesFor(
+  postIds: number[],
+): Promise<Map<number, string[]>> {
   const map = new Map<number, string[]>();
   if (postIds.length === 0) return map;
   const rows = await db
@@ -115,6 +117,64 @@ export async function getPublishedPosts(): Promise<ContentItem[]> {
   const published = rows.filter((r) => r.status === "publish");
   const cats = await loadCategoriesFor(published.map((r) => r.id));
   return published.map((r) => rowToItem(r, cats));
+}
+
+export interface SearchOptions {
+  /** Free-text query matched against title and body (case-insensitive). */
+  query?: string;
+  /** Inclusive lower bound on publish date, as `YYYY-MM-DD`. */
+  from?: string;
+  /** Inclusive upper bound on publish date, as `YYYY-MM-DD`. */
+  to?: string;
+}
+
+/** Parse a `YYYY-MM-DD` string into a Date, or null if invalid/empty. */
+function parseDateInput(value: string | undefined): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return isNaN(d.valueOf()) ? null : d;
+}
+
+/**
+ * Search published posts by title and body, optionally constrained to a
+ * publish-date range. Results are ordered newest-first. Returns an empty array
+ * when no query and no date bounds are supplied.
+ */
+export async function searchPosts(opts: SearchOptions): Promise<ContentItem[]> {
+  const query = opts.query?.trim() ?? "";
+  const from = parseDateInput(opts.from);
+  const to = parseDateInput(opts.to);
+  if (!query && !from && !to) return [];
+
+  const conditions = [
+    eq(postTable.type, "post"),
+    eq(postTable.status, "publish"),
+  ];
+
+  if (query) {
+    // SQLite LIKE is case-insensitive for ASCII; lower() covers the rest.
+    const term = `%${query.toLowerCase()}%`;
+    conditions.push(
+      sql`(lower(${postTable.title}) like ${term} or lower(${postTable.body}) like ${term})`,
+    );
+  }
+  if (from) {
+    conditions.push(gte(postTable.publishedAt, from));
+  }
+  if (to) {
+    // Include the whole `to` day rather than cutting off at midnight.
+    const end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+    conditions.push(lte(postTable.publishedAt, end));
+  }
+
+  const rows = await db
+    .select()
+    .from(postTable)
+    .where(and(...conditions))
+    .orderBy(desc(postTable.publishedAt));
+  const cats = await loadCategoriesFor(rows.map((r) => r.id));
+  return rows.map((r) => rowToItem(r, cats));
 }
 
 export async function getAllPages(): Promise<ContentItem[]> {
