@@ -59,7 +59,7 @@ export function FeaturedPost({ post }: { post: ContentItem }) {
       </p>
       <Link href={`/${post.slug}/`} className="group block">
         <div
-          className="mb-5 flex h-[220px] items-center justify-center overflow-hidden rounded-md"
+          className="mb-5 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md"
           style={{ background: tone.bg }}
         >
           {cover ? (
@@ -123,7 +123,7 @@ export function PostCard({
     <article>
       <Link href={`/${post.slug}/`} className="group block">
         <div
-          className="mb-3 flex h-[130px] items-center justify-center overflow-hidden rounded-md text-[11px] tracking-[0.04em]"
+          className="mb-3 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-md text-[11px] tracking-[0.04em]"
           style={{ background: tone.bg, color: tone.fg }}
         >
           {cover ? (
