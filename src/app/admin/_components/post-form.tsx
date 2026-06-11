@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { TiptapEditor } from "~/app/admin/_components/tiptap-editor";
 import { slugify } from "~/lib/slug";
+import { uploadsUrl } from "~/lib/uploads";
 import { api } from "~/trpc/react";
 
 type Status = "publish" | "draft" | "private";
@@ -52,10 +53,50 @@ export function PostForm({ type, initial }: Props) {
     initial?.publishedAt ?? null,
   );
 
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+
   const create = api.admin.create.useMutation();
   const update = api.admin.update.useMutation();
   const autosave = api.admin.autosave.useMutation();
   const del = api.admin.delete.useMutation();
+  const presign = api.admin.presignUpload.useMutation();
+
+  const uploadCover = async (file: File) => {
+    setCoverError(null);
+    setCoverUploading(true);
+    try {
+      const { uploadUrl, publicPath } = await presign.mutateAsync({
+        filename: file.name,
+        contentType: file.type || "application/octet-stream",
+        size: file.size,
+      });
+      const res = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!res.ok) {
+        throw new Error(`Upload failed: ${res.status}`);
+      }
+      setCover(publicPath);
+    } catch (err) {
+      setCoverError((err as Error).message ?? "Upload failed");
+    } finally {
+      setCoverUploading(false);
+    }
+  };
+
+  const onPickCover = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) void uploadCover(file);
+    };
+    input.click();
+  };
 
   const parsedCategories = useMemo(
     () =>
@@ -319,14 +360,44 @@ export function PostForm({ type, initial }: Props) {
             </Field>
           )}
 
-          <Field label="Cover image URL">
-            <input
-              type="text"
-              value={cover}
-              onChange={(e) => setCover(e.target.value)}
-              placeholder="/uploads/2026/05/foo.jpg"
-              className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs focus:border-neutral-400 focus:outline-none"
-            />
+          <Field label="Cover image">
+            {cover && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={uploadsUrl(cover) ?? cover}
+                alt="Cover preview"
+                className="mb-2 aspect-video w-full rounded-md border border-neutral-200 object-cover"
+              />
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={cover}
+                onChange={(e) => setCover(e.target.value)}
+                placeholder="/uploads/2026/05/foo.jpg"
+                className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs focus:border-neutral-400 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={onPickCover}
+                disabled={coverUploading}
+                className="shrink-0 rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50"
+              >
+                {coverUploading ? "Uploading…" : "Upload"}
+              </button>
+            </div>
+            {cover && !coverUploading && (
+              <button
+                type="button"
+                onClick={() => setCover("")}
+                className="mt-1 text-xs text-neutral-400 hover:text-neutral-600"
+              >
+                Remove
+              </button>
+            )}
+            {coverError && (
+              <p className="mt-1 text-xs text-red-600">{coverError}</p>
+            )}
           </Field>
 
           <Field label="Excerpt">
