@@ -5,12 +5,31 @@ const navLinks = [
   { label: "Home", href: "/" },
   ...TOPICS.map((t) => ({ label: t.label, href: `/category/${t.slug}/` })),
   { label: "About", href: "/about/" },
-  { label: "Search", href: "/search/" },
 ];
 
 export function SiteHeader() {
   return (
-    <header className="border-gms-line border-b px-4 pt-10 pb-4 text-center">
+    <header className="border-gms-line relative border-b px-4 pt-10 pb-4 text-center">
+      <Link
+        href="/search/"
+        aria-label="Search"
+        className="text-gms-stone hover:text-gms-sage absolute top-4 right-4 transition-colors"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+      </Link>
       <p className="text-gms-sage m-0 mb-4 text-[13px] font-light tracking-[0.18em] uppercase">
         Faith · Family · Garden · Story
       </p>
