@@ -26,6 +26,18 @@ export const env = createEnv({
     AWS_REGION: z.string().optional(),
     AWS_ACCESS_KEY_ID: z.string().optional(),
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
+    // Comment spam filtering. All optional so local dev works without them:
+    // when unset, the corresponding check is skipped (fails open).
+    // Cloudflare Turnstile secret (server-side token verification).
+    TURNSTILE_SECRET_KEY: z.string().optional(),
+    // Akismet API key for content spam classification.
+    AKISMET_API_KEY: z.string().optional(),
+    // Social login (Better Auth). Each provider is enabled only when both
+    // its id and secret are present.
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    FACEBOOK_CLIENT_ID: z.string().optional(),
+    FACEBOOK_CLIENT_SECRET: z.string().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -40,11 +52,12 @@ export const env = createEnv({
     // Origin used to serve migrated images (e.g. https://cdn.goodmorningshelly.com
     // or https://gms-images.s3.amazonaws.com). Empty in dev → images load from
     // /public/uploads/ on disk.
-    NEXT_PUBLIC_UPLOADS_BASE_URL: z
-      .string()
-      .url()
-      .optional()
-      .or(z.literal("")),
+    NEXT_PUBLIC_UPLOADS_BASE_URL: z.string().url().optional().or(z.literal("")),
+    // Public origin of the site, used as the Akismet `blog` parameter and for
+    // building permalinks. e.g. "https://goodmorningshelly.com".
+    NEXT_PUBLIC_SITE_URL: z.string().url().optional().or(z.literal("")),
+    // Cloudflare Turnstile public site key (rendered in the comment form).
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   },
 
   /**
@@ -63,8 +76,16 @@ export const env = createEnv({
     AWS_REGION: process.env.AWS_REGION,
     AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+    TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
+    AKISMET_API_KEY: process.env.AKISMET_API_KEY,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID,
+    FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_UPLOADS_BASE_URL: process.env.NEXT_PUBLIC_UPLOADS_BASE_URL,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

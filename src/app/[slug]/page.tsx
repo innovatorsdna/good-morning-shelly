@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import type { ImgHTMLAttributes } from "react";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
+import { CommentsSection } from "~/app/_components/comments/comments-section";
 import {
   formatPostDate,
   getAllCategories,
@@ -117,6 +118,7 @@ export default async function ItemPage({ params }: RouteParams) {
           options={{ mdxOptions: { remarkPlugins: [remarkGfm] } }}
         />
       </article>
+      {item.type === "post" && <CommentsSection postId={item.id} />}
     </main>
   );
 }
