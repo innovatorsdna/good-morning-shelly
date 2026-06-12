@@ -1,5 +1,10 @@
 import { relations, sql } from "drizzle-orm";
-import { index, primaryKey, sqliteTable } from "drizzle-orm/sqlite-core";
+import {
+  type AnySQLiteColumn,
+  index,
+  primaryKey,
+  sqliteTable,
+} from "drizzle-orm/sqlite-core";
 
 // Better Auth core tables
 export const user = sqliteTable("user", (d) => ({
@@ -207,4 +212,61 @@ export const postOldSlug = sqliteTable(
 
 export const postOldSlugRelations = relations(postOldSlug, ({ one }) => ({
   post: one(post, { fields: [postOldSlug.postId], references: [post.id] }),
+}));
+
+// Reader comments on posts. A comment is authored either by a signed-in user
+// (`userId` set) or anonymously (`guestName`/`guestEmail` set). `status` drives
+// moderation: comments that clear the spam pipeline are "approved" and shown
+// publicly; flagged ones are held as "spam" (or "pending") for admin review.
+export const comment = sqliteTable(
+  "comment",
+  (d) => ({
+    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    postId: d
+      .integer({ mode: "number" })
+      .notNull()
+      .references(() => post.id, { onDelete: "cascade" }),
+    // Self-reference for threaded replies. Needs an explicit return type so
+    // TypeScript can resolve the circular reference.
+    parentId: d
+      .integer({ mode: "number" })
+      .references((): AnySQLiteColumn => comment.id, { onDelete: "cascade" }),
+    // Set when the author is signed in; null for anonymous comments.
+    userId: d
+      .text({ length: 255 })
+      .references(() => user.id, { onDelete: "set null" }),
+    // Set when the author is anonymous; null for signed-in comments.
+    guestName: d.text({ length: 80 }),
+    guestEmail: d.text({ length: 255 }),
+    body: d.text().notNull(),
+    // "approved" | "pending" | "spam"
+    status: d.text({ length: 16 }).notNull().default("pending"),
+    // Audit trail for why a comment was held, if it was.
+    spamReason: d.text({ length: 255 }),
+    // SHA-256 of the submitter IP (never store raw IPs) for rate limiting.
+    ipHash: d.text({ length: 64 }),
+    userAgent: d.text({ length: 512 }),
+    createdAt: d
+      .integer({ mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+    updatedAt: d.integer({ mode: "timestamp" }).$onUpdate(() => new Date()),
+  }),
+  (t) => [
+    index("comment_post_status_idx").on(t.postId, t.status),
+    index("comment_parent_idx").on(t.parentId),
+    index("comment_user_idx").on(t.userId),
+    index("comment_created_idx").on(t.createdAt),
+  ],
+);
+
+export const commentRelations = relations(comment, ({ one, many }) => ({
+  post: one(post, { fields: [comment.postId], references: [post.id] }),
+  user: one(user, { fields: [comment.userId], references: [user.id] }),
+  parent: one(comment, {
+    fields: [comment.parentId],
+    references: [comment.id],
+    relationName: "comment_replies",
+  }),
+  replies: many(comment, { relationName: "comment_replies" }),
 }));
