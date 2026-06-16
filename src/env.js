@@ -11,6 +11,9 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string()
         : z.string().optional(),
+    // Shared secret required to create a new account on the sign-up form.
+    // When unset, account creation is disabled (no key can ever match).
+    REGISTRATION_KEY: z.string().optional(),
     // Local dev uses a `file:` SQLite URL; production points at Turso libsql.
     // TURSO_DATABASE_URL takes precedence over DATABASE_URL when both are set.
     DATABASE_URL: z.string().url().optional(),
@@ -66,6 +69,7 @@ export const env = createEnv({
    */
   runtimeEnv: {
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    REGISTRATION_KEY: process.env.REGISTRATION_KEY,
     DATABASE_URL: process.env.DATABASE_URL,
     TURSO_DATABASE_URL: process.env.TURSO_DATABASE_URL,
     TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN,

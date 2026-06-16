@@ -14,9 +14,16 @@ export default async function AdminLayout({
 
   if (!session) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-        <div className="container flex flex-col items-center justify-center gap-8 px-4 py-16">
-          <h1 className="text-4xl font-bold">Admin sign in</h1>
+      <main className="bg-gms-cream flex min-h-screen flex-col items-center justify-center px-6 py-16">
+        <div className="flex w-full max-w-sm flex-col items-center gap-8">
+          <header className="text-center">
+            <p className="text-gms-rose m-0 mb-2 text-[10px] font-bold tracking-[0.2em] uppercase">
+              Good Morning Shelly
+            </p>
+            <h1 className="text-gms-ink m-0 font-serif text-[32px] font-semibold">
+              Admin sign in
+            </h1>
+          </header>
           <AuthForm />
         </div>
       </main>
