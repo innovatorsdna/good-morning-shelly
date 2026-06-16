@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 
 import { env } from "~/env";
 import { db } from "~/server/db";
@@ -33,6 +34,23 @@ export const auth = betterAuth({
     enabled: true,
   },
   socialProviders,
+  hooks: {
+    // Gate email/password sign-up behind a shared registration key. The key is
+    // sent in the request body by the sign-up form and validated here, before
+    // any account is created. Social sign-in is unaffected.
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") return;
+
+      const registrationKey = (ctx.body as { registrationKey?: unknown })
+        ?.registrationKey;
+
+      if (!env.REGISTRATION_KEY || registrationKey !== env.REGISTRATION_KEY) {
+        throw new APIError("FORBIDDEN", {
+          message: "Invalid registration key.",
+        });
+      }
+    }),
+  },
   user: {
     additionalFields: {
       role: {
