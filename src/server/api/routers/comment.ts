@@ -14,6 +14,7 @@ import {
   verifyTurnstile,
 } from "~/server/comments/spam";
 import {
+  blockedIp as blockedIpTable,
   comment as commentTable,
   post as postTable,
   user as userTable,
@@ -137,7 +138,18 @@ export const commentRouter = createTRPCRouter({
       const ipHash = hashIp(ip);
       const userAgent = ctx.headers.get("user-agent") ?? undefined;
 
-      // 6. Rate limit per IP.
+      // 6. Blocked IPs — an admin has banned this address. Pretend success so
+      //    we don't reveal the ban, but persist nothing.
+      const blocked = await ctx.db
+        .select({ ipHash: blockedIpTable.ipHash })
+        .from(blockedIpTable)
+        .where(eq(blockedIpTable.ipHash, ipHash))
+        .limit(1);
+      if (blocked.length > 0) {
+        return { status: "spam" as const };
+      }
+
+      // 7. Rate limit per IP.
       const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
       const recent = await ctx.db
         .select({ c: count() })
@@ -155,7 +167,7 @@ export const commentRouter = createTRPCRouter({
         });
       }
 
-      // 7. Turnstile — required for anonymous submissions (when configured).
+      // 8. Turnstile — required for anonymous submissions (when configured).
       if (!sessionUser) {
         const ok = await verifyTurnstile(input.turnstileToken, ip);
         if (!ok) {
@@ -166,7 +178,7 @@ export const commentRouter = createTRPCRouter({
         }
       }
 
-      // 8. Akismet content classification.
+      // 9. Akismet content classification.
       const { spam } = await checkAkismet({
         ip,
         userAgent,
@@ -178,7 +190,7 @@ export const commentRouter = createTRPCRouter({
         isRegistered: !!sessionUser,
       });
 
-      // 9. Decide moderation status. Signed-in users and clean anonymous
+      // 10. Decide moderation status. Signed-in users and clean anonymous
       //    comments are auto-approved; spammy ones are held for review.
       const status: "approved" | "spam" = spam ? "spam" : "approved";
 
@@ -232,13 +244,16 @@ export const commentRouter = createTRPCRouter({
       return ctx.db
         .select({
           id: commentTable.id,
+          parentId: commentTable.parentId,
           body: commentTable.body,
           status: commentTable.status,
           createdAt: commentTable.createdAt,
           guestName: commentTable.guestName,
           guestEmail: commentTable.guestEmail,
           spamReason: commentTable.spamReason,
+          ipHash: commentTable.ipHash,
           userName: userTable.name,
+          userImage: userTable.image,
           postId: commentTable.postId,
           postSlug: postTable.slug,
           postTitle: postTable.title,
@@ -272,5 +287,119 @@ export const commentRouter = createTRPCRouter({
         })
         .where(eq(commentTable.id, input.id));
       return { id: input.id, action: input.action };
+    }),
+
+  /**
+   * Reply to a comment as the signed-in admin. The reply is posted publicly
+   * (status "approved") under the admin's user account, threaded beneath the
+   * target comment.
+   */
+  reply: adminProcedure
+    .input(
+      z.object({
+        parentId: z.number().int().positive(),
+        body: z.string().trim().min(1, "Reply can't be empty.").max(5000),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const parent = await ctx.db
+        .select({ id: commentTable.id, postId: commentTable.postId })
+        .from(commentTable)
+        .where(eq(commentTable.id, input.parentId))
+        .limit(1);
+      const parentRow = parent[0];
+      if (!parentRow) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Comment not found.",
+        });
+      }
+
+      const inserted = await ctx.db
+        .insert(commentTable)
+        .values({
+          postId: parentRow.postId,
+          parentId: parentRow.id,
+          userId: ctx.session.user.id,
+          body: input.body,
+          status: "approved",
+        })
+        .returning({ id: commentTable.id });
+
+      const row = inserted[0];
+      if (!row) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      return { id: row.id, parentId: parentRow.id };
+    }),
+
+  // ---------- IP blocking ----------
+
+  /** IP addresses currently banned from commenting, newest first. */
+  listBlockedIps: adminProcedure.query(async ({ ctx }) => {
+    return ctx.db
+      .select({
+        ipHash: blockedIpTable.ipHash,
+        note: blockedIpTable.note,
+        createdAt: blockedIpTable.createdAt,
+      })
+      .from(blockedIpTable)
+      .orderBy(desc(blockedIpTable.createdAt));
+  }),
+
+  /**
+   * Ban an IP from commenting. Provide either a `commentId` (bans the IP that
+   * posted that comment) or a raw `ip` to hash and ban. We only ever store the
+   * hash; a raw IP entered here is kept verbatim in `note` for display.
+   */
+  blockIp: adminProcedure
+    .input(
+      z
+        .object({
+          commentId: z.number().int().positive().optional(),
+          ip: z.string().trim().min(1).max(64).optional(),
+          note: z.string().trim().max(255).optional(),
+        })
+        .refine((v) => v.commentId != null || v.ip != null, {
+          message: "Provide a comment or an IP address to block.",
+        }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      let ipHash: string;
+      let note = input.note ?? null;
+
+      if (input.ip) {
+        ipHash = hashIp(input.ip);
+        note = note ?? input.ip;
+      } else {
+        const rows = await ctx.db
+          .select({ ipHash: commentTable.ipHash })
+          .from(commentTable)
+          .where(eq(commentTable.id, input.commentId!))
+          .limit(1);
+        const hash = rows[0]?.ipHash;
+        if (!hash) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "No IP address is recorded for that comment.",
+          });
+        }
+        ipHash = hash;
+      }
+
+      await ctx.db
+        .insert(blockedIpTable)
+        .values({ ipHash, note, createdBy: ctx.session.user.id })
+        .onConflictDoNothing();
+
+      return { ipHash };
+    }),
+
+  /** Lift a ban for the given IP hash. */
+  unblockIp: adminProcedure
+    .input(z.object({ ipHash: z.string().length(64) }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .delete(blockedIpTable)
+        .where(eq(blockedIpTable.ipHash, input.ipHash));
+      return { ipHash: input.ipHash };
     }),
 });

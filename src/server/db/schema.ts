@@ -270,3 +270,20 @@ export const commentRelations = relations(comment, ({ one, many }) => ({
   }),
   replies: many(comment, { relationName: "comment_replies" }),
 }));
+
+// IP addresses an admin has banned from commenting. We never store raw IPs
+// anywhere (see `comment.ipHash`), so a ban is keyed on the SHA-256 of the IP.
+// `note` is a free-text label — for bans added by typing an IP it holds the
+// raw address the admin entered; for bans created from a comment it holds an
+// optional reason.
+export const blockedIp = sqliteTable("blocked_ip", (d) => ({
+  ipHash: d.text({ length: 64 }).notNull().primaryKey(),
+  note: d.text({ length: 255 }),
+  createdBy: d
+    .text({ length: 255 })
+    .references(() => user.id, { onDelete: "set null" }),
+  createdAt: d
+    .integer({ mode: "timestamp" })
+    .default(sql`(unixepoch())`)
+    .notNull(),
+}));
