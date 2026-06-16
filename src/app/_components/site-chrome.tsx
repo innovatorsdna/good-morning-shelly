@@ -8,10 +8,14 @@ import { SiteHeader } from "~/components/site-header";
 export function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin") ?? false;
+  // BIRTHDAY GATE (temporary): the /welcome gate renders its own full-page
+  // wrapping-paper layout and must not leak the public nav/header. Remove this
+  // `isWelcome` check when retiring the gate (see src/middleware.ts).
+  const isWelcome = pathname?.startsWith("/welcome") ?? false;
 
   // The admin interface manages its own full-width layout (sidebar, header),
   // so skip the public site chrome and the narrow reading-width container.
-  if (isAdmin) {
+  if (isAdmin || isWelcome) {
     return <>{children}</>;
   }
 
