@@ -15,6 +15,13 @@
       "when": 1781280283057,
       "tag": "0001_melted_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781643432605,
+      "tag": "0002_clever_doorman",
+      "breakpoints": true
     }
   ]
 }
