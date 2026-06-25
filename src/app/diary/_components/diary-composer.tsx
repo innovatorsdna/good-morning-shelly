@@ -17,6 +17,7 @@ export function DiaryComposer() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const presign = api.diary.presignUpload.useMutation();
   const utils = api.useUtils();
   const create = api.diary.create.useMutation({
     onSuccess: async () => {
@@ -32,22 +33,17 @@ export function DiaryComposer() {
     setPreview(URL.createObjectURL(file));
     setUploading(true);
     try {
-      // Upload through our own origin instead of PUTting straight to S3: a
-      // cross-origin PUT needs bucket CORS and otherwise fails with an opaque
-      // "Failed to fetch" / "Load failed" in the browser.
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/diary/upload", {
-        method: "POST",
-        body: form,
+      const { uploadUrl, publicPath } = await presign.mutateAsync({
+        filename: file.name,
+        contentType: file.type || "application/octet-stream",
+        size: file.size,
       });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(body?.error ?? `Upload failed (${res.status})`);
-      }
-      const { publicPath } = (await res.json()) as { publicPath: string };
+      const res = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
       setImagePath(publicPath);
     } catch (err) {
       setError((err as Error).message ?? "Upload failed");
