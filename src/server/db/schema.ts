@@ -285,10 +285,14 @@ export const diaryPost = sqliteTable(
       .references(() => user.id, { onDelete: "set null" }),
     image: d.text({ length: 1024 }).notNull(),
     caption: d.text(),
+    // Running total of heart taps. There's no per-user like row — a tap simply
+    // increments this counter (you can tap as many times as you like).
+    likes: d.integer({ mode: "number" }).notNull().default(0),
     createdAt: d
       .integer({ mode: "timestamp" })
       .default(sql`(unixepoch())`)
       .notNull(),
+    updatedAt: d.integer({ mode: "timestamp" }).$onUpdate(() => new Date()),
   }),
   (t) => [
     index("diary_post_created_idx").on(t.createdAt),
@@ -296,8 +300,43 @@ export const diaryPost = sqliteTable(
   ],
 );
 
-export const diaryPostRelations = relations(diaryPost, ({ one }) => ({
+export const diaryPostRelations = relations(diaryPost, ({ one, many }) => ({
   author: one(user, { fields: [diaryPost.authorId], references: [user.id] }),
+  comments: many(diaryComment),
+}));
+
+// Comments on a Love Diary entry. Like the diary itself this is admin-only, so
+// there's no moderation pipeline — every comment is authored by a signed-in
+// admin and shown as-is.
+export const diaryComment = sqliteTable(
+  "diary_comment",
+  (d) => ({
+    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    postId: d
+      .integer({ mode: "number" })
+      .notNull()
+      .references(() => diaryPost.id, { onDelete: "cascade" }),
+    authorId: d
+      .text({ length: 255 })
+      .references(() => user.id, { onDelete: "set null" }),
+    body: d.text().notNull(),
+    createdAt: d
+      .integer({ mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  }),
+  (t) => [index("diary_comment_post_idx").on(t.postId, t.createdAt)],
+);
+
+export const diaryCommentRelations = relations(diaryComment, ({ one }) => ({
+  post: one(diaryPost, {
+    fields: [diaryComment.postId],
+    references: [diaryPost.id],
+  }),
+  author: one(user, {
+    fields: [diaryComment.authorId],
+    references: [user.id],
+  }),
 }));
 
 // IP addresses an admin has banned from commenting. We never store raw IPs
