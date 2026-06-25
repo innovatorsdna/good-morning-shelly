@@ -5,6 +5,7 @@ import { createHash, createHmac } from "node:crypto";
 import {
   DeleteObjectCommand,
   ListObjectsV2Command,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 
@@ -62,6 +63,54 @@ export interface PresignResult {
   publicPath: string;
 }
 
+/**
+ * Build the dated, collision-resistant S3 key (and matching public path) for a
+ * freshly uploaded file. Shared by the presign flow and the server-side proxy
+ * upload so both land objects in the same `/uploads/YYYY/MM/` tree.
+ */
+export function buildUploadKey(
+  filename: string,
+  now: Date = new Date(),
+): { key: string; publicPath: string } {
+  const yyyy = String(now.getUTCFullYear());
+  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+
+  const safe = safeFilename(filename) || "upload";
+  // Add a short random prefix so concurrent uploads with the same name don't
+  // overwrite each other.
+  const rand = Math.random().toString(36).slice(2, 8);
+  const key = `uploads/${yyyy}/${mm}/${rand}-${safe}`;
+
+  return { key, publicPath: `/${key}` };
+}
+
+/**
+ * Upload bytes straight to S3 from the server. Used by the proxy upload route
+ * so browsers never PUT cross-origin to S3 (which would require bucket CORS and
+ * otherwise surfaces as an opaque "Failed to fetch" / "Load failed").
+ */
+export async function putObject({
+  key,
+  body,
+  contentType,
+}: {
+  key: string;
+  body: Buffer | Uint8Array;
+  contentType: string;
+}): Promise<void> {
+  if (!env.S3_BUCKET) {
+    throw new Error("S3_BUCKET is not configured.");
+  }
+  await getClient().send(
+    new PutObjectCommand({
+      Bucket: env.S3_BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    }),
+  );
+}
+
 export async function presignUpload({
   filename,
   contentType,
@@ -74,14 +123,7 @@ export async function presignUpload({
   }
 
   const now = new Date();
-  const yyyy = String(now.getUTCFullYear());
-  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
-
-  const safe = safeFilename(filename) || "upload";
-  // Add a short random prefix so concurrent uploads with the same name don't
-  // overwrite each other.
-  const rand = Math.random().toString(36).slice(2, 8);
-  const key = `uploads/${yyyy}/${mm}/${rand}-${safe}`;
+  const { key, publicPath } = buildUploadKey(filename, now);
 
   const uploadUrl = presignS3PutUrl({
     region,
@@ -96,7 +138,7 @@ export async function presignUpload({
 
   return {
     uploadUrl,
-    publicPath: `/${key}`,
+    publicPath,
   };
 }
 
@@ -145,8 +187,7 @@ function presignS3PutUrl({
   const credentialScope = `${dateStamp}/${region}/s3/aws4_request`;
   const signedHeaders = "content-type;host";
 
-  const canonicalUri =
-    "/" + key.split("/").map(rfc3986Encode).join("/");
+  const canonicalUri = "/" + key.split("/").map(rfc3986Encode).join("/");
 
   const queryPairs: [string, string][] = [
     ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
@@ -227,16 +268,14 @@ export async function listMediaObjects({
       key: c.Key!,
       publicPath: `/${c.Key}`,
       size: c.Size ?? 0,
-      lastModified: c.LastModified
-        ? c.LastModified.toISOString()
-        : null,
+      lastModified: c.LastModified ? c.LastModified.toISOString() : null,
     }))
     // Newest first.
-    .sort((a, b) => (a.lastModified ?? "") < (b.lastModified ?? "") ? 1 : -1);
+    .sort((a, b) => ((a.lastModified ?? "") < (b.lastModified ?? "") ? 1 : -1));
 
   return {
     objects,
-    nextCursor: res.IsTruncated ? res.NextContinuationToken ?? null : null,
+    nextCursor: res.IsTruncated ? (res.NextContinuationToken ?? null) : null,
   };
 }
 

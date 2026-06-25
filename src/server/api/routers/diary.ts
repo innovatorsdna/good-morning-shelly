@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { adminProcedure, createTRPCRouter } from "~/server/api/trpc";
 import { diaryPost } from "~/server/db/schema";
-import { presignUpload } from "~/server/s3";
 
 /**
  * Love Diary — a private, Instagram-style photo journal. Every procedure is an
@@ -40,25 +39,6 @@ export const diaryRouter = createTRPCRouter({
       }
 
       return { posts: rows, nextCursor };
-    }),
-
-  /** Presign an S3 PUT for a diary photo. Mirrors `admin.presignUpload`. */
-  presignUpload: adminProcedure
-    .input(
-      z.object({
-        filename: z.string().min(1).max(255),
-        contentType: z
-          .string()
-          .regex(/^[\w.+-]+\/[\w.+-]+$/)
-          .max(100),
-        size: z.number().int().min(1).max(20 * 1024 * 1024),
-      }),
-    )
-    .mutation(async ({ input }) => {
-      return presignUpload({
-        filename: input.filename,
-        contentType: input.contentType,
-      });
     }),
 
   /** Create a diary entry from an already-uploaded image path + caption. */
