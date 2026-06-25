@@ -51,7 +51,7 @@ export const diaryRouter = createTRPCRouter({
           .string()
           .regex(/^[\w.+-]+\/[\w.+-]+$/)
           .max(100),
-        size: z.number().int().min(1).max(20 * 1024 * 1024),
+        size: z.number().int().min(1).max(50 * 1024 * 1024),
       }),
     )
     .mutation(async ({ input }) => {
