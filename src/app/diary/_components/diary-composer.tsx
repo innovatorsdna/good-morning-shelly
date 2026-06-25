@@ -80,7 +80,7 @@ export function DiaryComposer() {
           disabled={!imagePath || uploading || create.isPending}
           className="bg-gms-rose rounded-full px-4 py-1.5 text-[12px] font-bold tracking-[0.1em] text-white uppercase transition-opacity hover:opacity-90 disabled:opacity-40"
         >
-          {create.isPending ? "Sharing…" : "Share"}
+          {create.isPending ? "Posting…" : "Post"}
         </button>
       </header>
 
