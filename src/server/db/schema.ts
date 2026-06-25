@@ -30,6 +30,7 @@ export const userRelations = relations(user, ({ many }) => ({
   account: many(account),
   session: many(session),
   posts: many(post),
+  diaryPosts: many(diaryPost),
 }));
 
 export const account = sqliteTable(
@@ -269,6 +270,34 @@ export const commentRelations = relations(comment, ({ one, many }) => ({
     relationName: "comment_replies",
   }),
   replies: many(comment, { relationName: "comment_replies" }),
+}));
+
+// Love Diary — a private, Instagram-style photo journal. Each entry is a single
+// image (stored in S3 like all other uploads, referenced by its `/uploads/...`
+// path) plus an optional caption. Only admins can read or write these, gated by
+// `adminProcedure` in the API and the `/diary` route layout.
+export const diaryPost = sqliteTable(
+  "diary_post",
+  (d) => ({
+    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    authorId: d
+      .text({ length: 255 })
+      .references(() => user.id, { onDelete: "set null" }),
+    image: d.text({ length: 1024 }).notNull(),
+    caption: d.text(),
+    createdAt: d
+      .integer({ mode: "timestamp" })
+      .default(sql`(unixepoch())`)
+      .notNull(),
+  }),
+  (t) => [
+    index("diary_post_created_idx").on(t.createdAt),
+    index("diary_post_author_idx").on(t.authorId),
+  ],
+);
+
+export const diaryPostRelations = relations(diaryPost, ({ one }) => ({
+  author: one(user, { fields: [diaryPost.authorId], references: [user.id] }),
 }));
 
 // IP addresses an admin has banned from commenting. We never store raw IPs

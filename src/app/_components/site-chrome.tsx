@@ -7,11 +7,14 @@ import { SiteHeader } from "~/components/site-header";
 
 export function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdmin = pathname?.startsWith("/admin") ?? false;
+  // The admin interface and the Love Diary both manage their own full-width
+  // layouts, so skip the public site chrome and the narrow reading-width
+  // container for those sections.
+  const ownsLayout =
+    (pathname?.startsWith("/admin") ?? false) ||
+    (pathname?.startsWith("/diary") ?? false);
 
-  // The admin interface manages its own full-width layout (sidebar, header),
-  // so skip the public site chrome and the narrow reading-width container.
-  if (isAdmin) {
+  if (ownsLayout) {
     return <>{children}</>;
   }
 
