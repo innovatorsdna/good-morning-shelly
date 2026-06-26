@@ -101,6 +101,12 @@ export function DiaryFeed() {
             </button>
           </div>
         )}
+
+        {!feed.isLoading && !feed.isError && !feed.hasNextPage && posts.length > 0 && (
+          <p className="text-gms-muted px-4 py-10 text-center font-serif text-sm">
+            End of feed. But not the end of our love.
+          </p>
+        )}
       </main>
     </div>
   );
