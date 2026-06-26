@@ -1,5 +1,6 @@
 import { adminRouter } from "~/server/api/routers/admin";
 import { commentRouter } from "~/server/api/routers/comment";
+import { contactRouter } from "~/server/api/routers/contact";
 import { diaryRouter } from "~/server/api/routers/diary";
 import { postRouter } from "~/server/api/routers/post";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
@@ -13,6 +14,7 @@ export const appRouter = createTRPCRouter({
   post: postRouter,
   admin: adminRouter,
   comment: commentRouter,
+  contact: contactRouter,
   diary: diaryRouter,
 });
 

@@ -35,6 +35,14 @@ export const env = createEnv({
     TURNSTILE_SECRET_KEY: z.string().optional(),
     // Akismet API key for content spam classification.
     AKISMET_API_KEY: z.string().optional(),
+    // Resend transactional email. Used by the /login contact form to email
+    // the site owner. When the API key is unset, sending is disabled and the
+    // contact form returns a configuration error.
+    RESEND_API_KEY: z.string().optional(),
+    // The `from` address contact emails are sent as. Must be on a domain
+    // verified in Resend. Falls back to Resend's shared onboarding sender,
+    // which only delivers to the Resend account owner's own address.
+    RESEND_FROM_EMAIL: z.string().optional(),
     // Social login (Better Auth). Each provider is enabled only when both
     // its id and secret are present.
     GOOGLE_CLIENT_ID: z.string().optional(),
@@ -82,6 +90,8 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
     TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
     AKISMET_API_KEY: process.env.AKISMET_API_KEY,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID,

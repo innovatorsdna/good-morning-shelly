@@ -25,9 +25,13 @@ export function SiteChrome({
     return <>{children}</>;
   }
 
+  // The login page has its own centered layout and intentionally drops the
+  // site header so the sign-in panel stands alone.
+  const hideHeader = pathname?.startsWith("/login") ?? false;
+
   return (
     <div className="mx-auto max-w-[680px] px-0 pb-12">
-      {header}
+      {!hideHeader && header}
       {children}
       <SiteFooter />
     </div>
