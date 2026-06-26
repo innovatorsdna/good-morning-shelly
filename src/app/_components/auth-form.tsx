@@ -126,7 +126,7 @@ export function AuthForm({ redirectTo }: AuthFormProps = {}) {
             <input
               type="email"
               required
-              placeholder="you@example.com"
+              placeholder="charlottemason@gmail.com"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
               className={inputClass}
@@ -138,7 +138,7 @@ export function AuthForm({ redirectTo }: AuthFormProps = {}) {
             <textarea
               required
               rows={4}
-              placeholder="How can we help?"
+              placeholder="Tell me about yourself and let's be friends!"
               value={contactMessage}
               onChange={(e) => setContactMessage(e.target.value)}
               className={`${inputClass} resize-y`}

@@ -38,8 +38,7 @@ export default async function LoginPage({
             Members sign in
           </h1>
           <p className="m-0 mt-3 text-[13px] leading-[1.6] text-gms-stone">
-            Sign in to read members-only posts. Public posts stay open to
-            everyone — you can{" "}
+            This is a blog for nice people. If you are nice <i>and</i> human, I would love for you to join. Just click on the contact button below and I&apos;ll send you a key. Otherwise, feel free to{" "}
             <Link href="/" className="text-gms-sage hover:underline">
               keep browsing
             </Link>
