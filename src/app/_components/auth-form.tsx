@@ -181,7 +181,7 @@ export function AuthForm({ redirectTo }: AuthFormProps = {}) {
             <input
               type="email"
               required
-              placeholder="you@example.com"
+              placeholder="charlottemason@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}

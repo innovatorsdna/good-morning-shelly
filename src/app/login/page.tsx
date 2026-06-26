@@ -35,7 +35,7 @@ export default async function LoginPage({
             Good Morning Shelly
           </p>
           <h1 className="m-0 font-serif text-[32px] font-semibold text-gms-ink">
-            Members sign in
+            Hello friend.
           </h1>
           <p className="m-0 mt-3 text-[13px] leading-[1.6] text-gms-stone">
             This is a blog for nice people. If you are nice <i>and</i> human, I would love for you to join. Just click on the contact button below and I&apos;ll send you a key. Otherwise, feel free to{" "}
