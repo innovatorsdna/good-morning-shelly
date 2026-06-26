@@ -269,7 +269,14 @@ export function PostsListTable({ rows, type }: Props) {
                     <div className="font-medium">
                       {r.title || <em>(untitled)</em>}
                     </div>
-                    <div className="text-xs text-neutral-500">/{r.slug}</div>
+                    <a
+                      href={`/${r.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-neutral-500 underline underline-offset-4 hover:text-neutral-700"
+                    >
+                      /{r.slug}
+                    </a>
                   </td>
                   <td className="px-3 py-2">
                     <StatusBadge
