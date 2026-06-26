@@ -22,7 +22,7 @@ export default async function DiaryLayout({
         <div className="flex w-full max-w-sm flex-col items-center gap-8">
           <header className="text-center">
             <p className="text-gms-rose m-0 mb-2 text-[10px] font-bold tracking-[0.2em] uppercase">
-              Love Diary
+              Secret Love Diary
             </p>
             <h1 className="text-gms-ink m-0 font-serif text-[32px] font-semibold">
               Sign in

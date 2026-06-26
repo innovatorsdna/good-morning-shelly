@@ -5,6 +5,9 @@ import { useState } from "react";
 
 import { uploadsUrl } from "~/lib/uploads";
 import { api, type RouterOutputs } from "~/trpc/react";
+import {
+  Heart, MessageCircle
+} from "lucide-react";
 
 type DiaryPost = RouterOutputs["diary"]["feed"]["posts"][number];
 
@@ -47,7 +50,7 @@ export function DiaryFeed() {
       {/* Sticky app bar */}
       <header className="border-gms-line bg-gms-cream/95 sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3 backdrop-blur">
         <h1 className="text-gms-ink font-serif text-xl font-semibold">
-          Love Diary
+          Secret Love Diary
         </h1>
         <Link
           href="/diary/new"
@@ -235,7 +238,7 @@ function DiaryPostCard({ post }: { post: DiaryPost }) {
           aria-label="Like"
           className="text-gms-rose flex items-center gap-1.5 transition-transform active:scale-125"
         >
-          <span className="text-xl leading-none">♥</span>
+          <Heart className="w-4 h-4" strokeWidth={2}/>
           <span className="text-gms-ink text-sm font-semibold tabular-nums">
             {likes}
           </span>
@@ -246,7 +249,7 @@ function DiaryPostCard({ post }: { post: DiaryPost }) {
           aria-label="Comments"
           className="text-gms-stone hover:text-gms-ink flex items-center gap-1.5"
         >
-          <span className="text-xl leading-none">💬</span>
+          <MessageCircle className="w-4 h-4" strokeWidth={2}/>
           <span className="text-gms-ink text-sm font-semibold tabular-nums">
             {post.commentCount}
           </span>
