@@ -32,27 +32,29 @@ export default async function HomePage() {
         </>
       )}
 
-      <section className="mb-6 rounded-lg bg-gms-panel p-5">
-        <p className="m-0 mb-4 border-b border-gms-line pb-2 font-serif text-[15px] font-semibold text-gms-ink">
-          Browse by topic
-        </p>
-        <ul className="m-0 flex list-none flex-col gap-2 p-0">
-          {TOPICS.map((t) => (
-            <li key={t.slug}>
-              <Link
-                href={`/category/${t.slug}/`}
-                className="flex items-center gap-2 text-[13px] text-gms-stone hover:text-gms-ink"
-              >
-                <span
-                  className="h-[7px] w-[7px] shrink-0 rounded-full"
-                  style={{ background: t.color }}
-                />
-                {t.label} — {t.blurb}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {canSeePrivate && (
+        <section className="mb-6 rounded-lg bg-gms-panel p-5">
+          <p className="m-0 mb-4 border-b border-gms-line pb-2 font-serif text-[15px] font-semibold text-gms-ink">
+            Browse by topic
+          </p>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
+            {TOPICS.map((t) => (
+              <li key={t.slug}>
+                <Link
+                  href={`/category/${t.slug}/`}
+                  className="flex items-center gap-2 text-[13px] text-gms-stone hover:text-gms-ink"
+                >
+                  <span
+                    className="h-[7px] w-[7px] shrink-0 rounded-full"
+                    style={{ background: t.color }}
+                  />
+                  {t.label} — {t.blurb}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {hasMore && (
         <div className="text-center">

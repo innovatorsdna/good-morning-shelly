@@ -231,17 +231,19 @@ export async function SiteHeader() {
         />
       </svg>
 
-      <nav className="flex flex-wrap justify-center gap-x-8 gap-y-2 px-4 pt-4">
-        {navLinks.map((link) => (
-          <Link
-            key={link.label}
-            href={link.href}
-            className="text-gms-stone hover:border-gms-sage hover:text-gms-sage border-b-[1.5px] border-transparent pb-0.5 text-[11px] font-bold tracking-[0.14em] uppercase transition-colors"
-          >
-            {link.label}
-          </Link>
-        ))}
-      </nav>
+      {isLoggedIn && (
+        <nav className="flex flex-wrap justify-center gap-x-8 gap-y-2 px-4 pt-4">
+          {navLinks.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              className="text-gms-stone hover:border-gms-sage hover:text-gms-sage border-b-[1.5px] border-transparent pb-0.5 text-[11px] font-bold tracking-[0.14em] uppercase transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }
