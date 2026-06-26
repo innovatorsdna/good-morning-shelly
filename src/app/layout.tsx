@@ -12,8 +12,9 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    // Used by iOS when the site is added to the home screen.
-    apple: [{ url: "/favicon.svg" }],
+    // 180x180 PNG generated from favicon.svg — iOS ignores SVG icons for the
+    // home screen, so this is what shows when the site is added there.
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
   // Generates the Apple PWA meta tags so iOS Safari's "Add to Home Screen"
   // installs a full-screen, standalone web app:
