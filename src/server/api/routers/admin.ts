@@ -488,10 +488,11 @@ export const adminRouter = createTRPCRouter({
         })
         .from(postTable)
         .where(inArray(postTable.id, input.ids));
-      // Archived MDX is read-only, and pages are always public.
-      const editable = rows.filter(
-        (r) => r.source !== "mdx" && r.type === "post",
-      );
+      // Visibility is the one edit allowed on archived MDX posts: flipping an
+      // old read-only post to public (or back to members-only) doesn't touch
+      // its content, so it's safe even though everything else stays locked.
+      // Pages are excluded because they're always public.
+      const editable = rows.filter((r) => r.type === "post");
       if (editable.length === 0) {
         return { updated: 0, skipped: rows.length };
       }
