@@ -12,6 +12,7 @@ export interface PostRow {
   slug: string;
   title: string;
   status: string;
+  isPrivate: boolean;
   source: string;
   publishedAt: string | null;
   type: string;
@@ -28,6 +29,7 @@ export function PostsListTable({ rows, type }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const updateStatus = api.admin.bulkUpdateStatus.useMutation();
+  const setVisibility = api.admin.bulkSetVisibility.useMutation();
   const bulkDelete = api.admin.bulkDelete.useMutation();
   const basePath = type === "post" ? "/admin/posts" : "/admin/pages";
 
@@ -53,7 +55,7 @@ export function PostsListTable({ rows, type }: Props) {
     });
   };
 
-  const runStatus = async (status: "publish" | "draft" | "private") => {
+  const runStatus = async (status: "publish" | "draft") => {
     if (selected.size === 0) return;
     setError(null);
     try {
@@ -61,6 +63,18 @@ export function PostsListTable({ rows, type }: Props) {
         ids: [...selected],
         status,
       });
+      setSelected(new Set());
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const runVisibility = async (isPrivate: boolean) => {
+    if (selected.size === 0) return;
+    setError(null);
+    try {
+      await setVisibility.mutateAsync({ ids: [...selected], isPrivate });
       setSelected(new Set());
       router.refresh();
     } catch (err) {
@@ -94,7 +108,10 @@ export function PostsListTable({ rows, type }: Props) {
     }
   };
 
-  const busy = updateStatus.isPending || bulkDelete.isPending;
+  const busy =
+    updateStatus.isPending || setVisibility.isPending || bulkDelete.isPending;
+  // Pages are always public, so visibility actions only apply to posts.
+  const showVisibility = type === "post";
 
   return (
     <>
@@ -122,14 +139,26 @@ export function PostsListTable({ rows, type }: Props) {
         >
           Move to draft
         </button>
-        <button
-          type="button"
-          disabled={!anyChecked || busy}
-          onClick={() => void runStatus("private")}
-          className="rounded-md border border-neutral-200 bg-white px-3 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50"
-        >
-          Make private
-        </button>
+        {showVisibility && (
+          <>
+            <button
+              type="button"
+              disabled={!anyChecked || busy}
+              onClick={() => void runVisibility(true)}
+              className="rounded-md border border-neutral-200 bg-white px-3 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50"
+            >
+              Members only
+            </button>
+            <button
+              type="button"
+              disabled={!anyChecked || busy}
+              onClick={() => void runVisibility(false)}
+              className="rounded-md border border-neutral-200 bg-white px-3 py-1 text-xs font-medium hover:bg-neutral-100 disabled:opacity-50"
+            >
+              Make public
+            </button>
+          </>
+        )}
         <button
           type="button"
           disabled={!anyChecked || busy}
@@ -204,7 +233,12 @@ export function PostsListTable({ rows, type }: Props) {
                     <div className="text-xs text-neutral-500">/{r.slug}</div>
                   </td>
                   <td className="px-3 py-2">
-                    <StatusBadge status={r.status} source={r.source} />
+                    <StatusBadge
+                      status={r.status}
+                      source={r.source}
+                      isPrivate={r.isPrivate}
+                      type={r.type}
+                    />
                   </td>
                   <td className="px-3 py-2 text-xs text-neutral-500">
                     {r.publishedAt ? formatPostDate(r.publishedAt) : "—"}
@@ -231,18 +265,37 @@ export function PostsListTable({ rows, type }: Props) {
   );
 }
 
-function StatusBadge({ status, source }: { status: string; source: string }) {
+function StatusBadge({
+  status,
+  source,
+  isPrivate,
+  type,
+}: {
+  status: string;
+  source: string;
+  isPrivate: boolean;
+  type: string;
+}) {
   const cls =
     status === "publish"
       ? "bg-green-100 text-green-800"
-      : status === "private"
-        ? "bg-amber-100 text-amber-800"
-        : "bg-neutral-200 text-neutral-700";
+      : "bg-neutral-200 text-neutral-700";
   return (
     <div className="flex flex-wrap gap-1">
       <span className={`rounded px-2 py-0.5 text-xs font-medium ${cls}`}>
         {status}
       </span>
+      {type === "post" && (
+        <span
+          className={`rounded px-2 py-0.5 text-xs font-medium ${
+            isPrivate
+              ? "bg-amber-100 text-amber-800"
+              : "bg-sky-100 text-sky-800"
+          }`}
+        >
+          {isPrivate ? "members" : "public"}
+        </span>
+      )}
       {source === "mdx" && (
         <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
           archived

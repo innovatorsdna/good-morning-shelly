@@ -8,7 +8,7 @@ import { slugify } from "~/lib/slug";
 import { uploadsUrl } from "~/lib/uploads";
 import { api } from "~/trpc/react";
 
-type Status = "publish" | "draft" | "private";
+type Status = "publish" | "draft";
 type ContentType = "post" | "page";
 
 export interface PostFormInitial {
@@ -18,6 +18,7 @@ export interface PostFormInitial {
   slug: string;
   body: string;
   status: Status;
+  isPrivate: boolean;
   excerpt: string | null;
   cover: string | null;
   sticky: boolean;
@@ -40,6 +41,9 @@ export function PostForm({ type, initial }: Props) {
   const [slug, setSlug] = useState(initial?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(isEdit);
   const [status, setStatus] = useState<Status>(initial?.status ?? "draft");
+  // Audience for posts. New posts default to members-only; pages are always
+  // public so this control is hidden for them.
+  const [isPrivate, setIsPrivate] = useState(initial?.isPrivate ?? true);
   const [body, setBody] = useState(initial?.body ?? "");
   const [excerpt, setExcerpt] = useState(initial?.excerpt ?? "");
   const [cover, setCover] = useState(initial?.cover ?? "");
@@ -163,6 +167,7 @@ export function PostForm({ type, initial }: Props) {
       title,
       slug,
       status,
+      isPrivate,
       body,
       excerpt: excerpt || null,
       cover: cover || null,
@@ -332,9 +337,26 @@ export function PostForm({ type, initial }: Props) {
             >
               <option value="draft">Draft</option>
               <option value="publish">Published</option>
-              <option value="private">Private</option>
             </select>
           </Field>
+
+          {type === "post" && (
+            <Field label="Visibility">
+              <select
+                value={isPrivate ? "private" : "public"}
+                onChange={(e) => setIsPrivate(e.target.value === "private")}
+                className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-neutral-400 focus:outline-none"
+              >
+                <option value="private">Members only</option>
+                <option value="public">Public</option>
+              </select>
+              <p className="mt-1 text-xs text-neutral-500">
+                {isPrivate
+                  ? "Only signed-in members can read this once published."
+                  : "Anyone can read this once published."}
+              </p>
+            </Field>
+          )}
 
           {type === "post" && (
             <Field label="Categories">

@@ -35,7 +35,6 @@ export function PostsListFilters({ action, defaultQuery, defaultStatus }: Props)
           <option value="">All</option>
           <option value="publish">Published</option>
           <option value="draft">Draft</option>
-          <option value="private">Private</option>
         </select>
       </label>
       <button

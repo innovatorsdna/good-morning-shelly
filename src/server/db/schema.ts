@@ -17,7 +17,10 @@ export const user = sqliteTable("user", (d) => ({
   email: d.text({ length: 255 }).notNull().unique(),
   emailVerified: d.integer({ mode: "boolean" }).default(false),
   image: d.text({ length: 255 }),
-  // "user" | "admin"
+  // "member" | "admin". New accounts are created as "member" by Better Auth
+  // (see better-auth/config.ts `additionalFields.role`). The DB-level default
+  // below is a never-hit fallback kept at "user" to avoid a destructive SQLite
+  // column rebuild; the 0006 migration renames existing "user" rows to "member".
   role: d.text({ length: 32 }).notNull().default("user"),
   createdAt: d
     .integer({ mode: "timestamp" })
@@ -134,6 +137,12 @@ export const post = sqliteTable(
     excerpt: d.text(),
     cover: d.text({ length: 1024 }),
     status: d.text({ length: 16 }).notNull().default("draft"),
+    // Audience for a published post: false = public (visible to everyone),
+    // true = members-only (visible only to signed-in users). Orthogonal to
+    // `status`, which is the publish/draft lifecycle. New posts default to
+    // members-only so private writing is the safe default. Pages are always
+    // public regardless of this flag.
+    isPrivate: d.integer({ mode: "boolean" }).notNull().default(true),
     sticky: d.integer({ mode: "boolean" }).notNull().default(false),
     wpId: d.text({ length: 64 }),
     authorId: d
@@ -152,6 +161,7 @@ export const post = sqliteTable(
   }),
   (t) => [
     index("post_status_idx").on(t.status),
+    index("post_visibility_idx").on(t.status, t.isPrivate),
     index("post_type_idx").on(t.type),
     index("post_published_at_idx").on(t.publishedAt),
     index("post_author_id_idx").on(t.authorId),

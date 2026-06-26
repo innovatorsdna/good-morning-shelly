@@ -23,6 +23,11 @@ export interface ContentItem {
   /** ISO 8601 last-modified timestamp. */
   modified?: string;
   status: Status;
+  /**
+   * Audience for a published post. `true` = members-only (signed-in viewers),
+   * `false` = public. Always `false` for pages.
+   */
+  isPrivate: boolean;
   categories?: string[];
   cover?: string;
   excerpt?: string;
@@ -53,6 +58,7 @@ interface PostRow {
   excerpt: string | null;
   cover: string | null;
   status: string;
+  isPrivate: boolean;
   sticky: boolean;
   wpId: string | null;
   publishedAt: Date | null;
@@ -73,6 +79,7 @@ function rowToItem(
     date: toIsoString(row.publishedAt),
     modified: toIsoString(row.updatedAt) || undefined,
     status: (row.status as Status) ?? "draft",
+    isPrivate: row.isPrivate,
     categories: categoriesByPost.get(row.id),
     cover: row.cover ?? undefined,
     excerpt: row.excerpt ?? undefined,
@@ -108,13 +115,27 @@ export async function getAllItems(): Promise<ContentItem[]> {
   return rows.map((r) => rowToItem(r, cats));
 }
 
-export async function getPublishedPosts(): Promise<ContentItem[]> {
+/**
+ * Audience-scoping for the public read functions. When `includePrivate` is
+ * false (the default — fail closed), members-only posts are excluded so a
+ * caller that forgets to pass the viewer never leaks private content.
+ */
+export interface AudienceOptions {
+  includePrivate?: boolean;
+}
+
+export async function getPublishedPosts(
+  opts: AudienceOptions = {},
+): Promise<ContentItem[]> {
+  const includePrivate = opts.includePrivate ?? false;
   const rows = await db
     .select()
     .from(postTable)
     .where(eq(postTable.type, "post"))
     .orderBy(desc(postTable.publishedAt));
-  const published = rows.filter((r) => r.status === "publish");
+  const published = rows.filter(
+    (r) => r.status === "publish" && (includePrivate || !r.isPrivate),
+  );
   const cats = await loadCategoriesFor(published.map((r) => r.id));
   return published.map((r) => rowToItem(r, cats));
 }
@@ -126,6 +147,8 @@ export interface SearchOptions {
   from?: string;
   /** Inclusive upper bound on publish date, as `YYYY-MM-DD`. */
   to?: string;
+  /** When false (default), members-only posts are excluded from results. */
+  includePrivate?: boolean;
 }
 
 /** Parse a `YYYY-MM-DD` string into a Date, or null if invalid/empty. */
@@ -150,6 +173,10 @@ export async function searchPosts(opts: SearchOptions): Promise<ContentItem[]> {
     eq(postTable.type, "post"),
     eq(postTable.status, "publish"),
   ];
+
+  if (!opts.includePrivate) {
+    conditions.push(eq(postTable.isPrivate, false));
+  }
 
   if (query) {
     // SQLite LIKE is case-insensitive for ASCII; lower() covers the rest.
@@ -208,7 +235,11 @@ export function getCategoryDisplayName(slug: string): string {
   return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export async function getPostsByCategory(slug: string): Promise<ContentItem[]> {
+export async function getPostsByCategory(
+  slug: string,
+  opts: AudienceOptions = {},
+): Promise<ContentItem[]> {
+  const includePrivate = opts.includePrivate ?? false;
   const rows = await db
     .select({ post: postTable })
     .from(postCategory)
@@ -217,25 +248,33 @@ export async function getPostsByCategory(slug: string): Promise<ContentItem[]> {
     .orderBy(desc(postTable.publishedAt));
   const published = rows
     .map((r) => r.post)
-    .filter((r) => r.type === "post" && r.status === "publish");
+    .filter(
+      (r) =>
+        r.type === "post" &&
+        r.status === "publish" &&
+        (includePrivate || !r.isPrivate),
+    );
   const cats = await loadCategoriesFor(published.map((r) => r.id));
   return published.map((r) => rowToItem(r, cats));
 }
 
-export async function getAllCategories(): Promise<
-  Array<{ slug: string; name: string; count: number }>
-> {
+export async function getAllCategories(
+  opts: AudienceOptions = {},
+): Promise<Array<{ slug: string; name: string; count: number }>> {
+  const includePrivate = opts.includePrivate ?? false;
   const rows = await db
     .select({
       slug: postCategory.categorySlug,
       status: postTable.status,
       type: postTable.type,
+      isPrivate: postTable.isPrivate,
     })
     .from(postCategory)
     .innerJoin(postTable, eq(postCategory.postId, postTable.id));
   const counts = new Map<string, number>();
   for (const r of rows) {
     if (r.type !== "post" || r.status !== "publish") continue;
+    if (!includePrivate && r.isPrivate) continue;
     counts.set(r.slug, (counts.get(r.slug) ?? 0) + 1);
   }
   // Pull display names from the category table where present.

@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth } from "~/server/better-auth";
+import { getViewer } from "~/server/better-auth/server";
 import { TOPICS } from "~/lib/topics";
 
 const navLinks = [
@@ -7,9 +11,33 @@ const navLinks = [
   { label: "About", href: "/about/" },
 ];
 
-export function SiteHeader() {
+const authLinkClass =
+  "text-gms-stone hover:text-gms-sage absolute top-4 left-4 text-[11px] font-bold tracking-[0.14em] uppercase transition-colors";
+
+export async function SiteHeader() {
+  const { isLoggedIn } = await getViewer();
+
   return (
     <header className="border-gms-line relative border-b px-4 pt-10 pb-4 text-center">
+      {isLoggedIn ? (
+        <form>
+          <button
+            type="submit"
+            className={authLinkClass}
+            formAction={async () => {
+              "use server";
+              await auth.api.signOut({ headers: await headers() });
+              redirect("/");
+            }}
+          >
+            Sign out
+          </button>
+        </form>
+      ) : (
+        <Link href="/login/" className={authLinkClass}>
+          Sign in
+        </Link>
+      )}
       <Link
         href="/search/"
         aria-label="Search"

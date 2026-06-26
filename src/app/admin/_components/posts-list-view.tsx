@@ -10,7 +10,7 @@ interface SearchParams {
   page?: string;
 }
 
-const STATUSES = ["publish", "draft", "private"] as const;
+const STATUSES = ["publish", "draft"] as const;
 type Status = (typeof STATUSES)[number];
 
 function parseStatus(s: string | undefined): Status | undefined {
@@ -72,6 +72,7 @@ export async function PostsListView({
           slug: r.slug,
           title: r.title,
           status: r.status,
+          isPrivate: r.isPrivate,
           source: r.source,
           publishedAt: r.publishedAt ? r.publishedAt.toISOString() : null,
           type: r.type,

@@ -5,6 +5,7 @@ import {
   getCategoryDisplayName,
   searchPosts,
 } from "~/lib/content";
+import { getViewer } from "~/server/better-auth/server";
 
 export const metadata = { title: "Search — Good Morning Shelly" };
 
@@ -74,7 +75,10 @@ export default async function SearchPage({
   const to = params.to ?? "";
   const hasCriteria = Boolean(q || from || to);
 
-  const results = hasCriteria ? await searchPosts({ query: q, from, to }) : [];
+  const { canSeePrivate } = await getViewer();
+  const results = hasCriteria
+    ? await searchPosts({ query: q, from, to, includePrivate: canSeePrivate })
+    : [];
 
   return (
     <main className="px-6 pt-8">

@@ -1,18 +1,22 @@
 import Link from "next/link";
 import { FeaturedPost, PostCard } from "~/components/post-card";
+import { MembersPrompt } from "~/components/members-prompt";
 import { getPublishedPosts } from "~/lib/content";
+import { getViewer } from "~/server/better-auth/server";
 import { TOPICS } from "~/lib/topics";
 
 const GRID_COUNT = 4;
 
 export default async function HomePage() {
-  const posts = await getPublishedPosts();
+  const { canSeePrivate } = await getViewer();
+  const posts = await getPublishedPosts({ includePrivate: canSeePrivate });
   const [featured, ...rest] = posts;
   const grid = rest.slice(0, GRID_COUNT);
   const hasMore = posts.length > 1 + GRID_COUNT;
 
   return (
     <main className="px-6 pt-8">
+      {!canSeePrivate && <MembersPrompt />}
       {featured && <FeaturedPost post={featured} />}
 
       {grid.length > 0 && (

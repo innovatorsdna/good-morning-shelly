@@ -3,9 +3,16 @@
 import { usePathname } from "next/navigation";
 
 import { SiteFooter } from "~/components/site-footer";
-import { SiteHeader } from "~/components/site-header";
 
-export function SiteChrome({ children }: { children: React.ReactNode }) {
+export function SiteChrome({
+  header,
+  children,
+}: {
+  // Rendered on the server (it reads the session) and passed in, since this
+  // client component can't import the async SiteHeader directly.
+  header: React.ReactNode;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   // The admin interface and the Love Diary both manage their own full-width
   // layouts, so skip the public site chrome and the narrow reading-width
@@ -20,7 +27,7 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="mx-auto max-w-[680px] px-0 pb-12">
-      <SiteHeader />
+      {header}
       {children}
       <SiteFooter />
     </div>

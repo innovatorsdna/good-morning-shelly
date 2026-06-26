@@ -4,6 +4,7 @@ import { type Metadata } from "next";
 import { Lato, Playfair_Display } from "next/font/google";
 
 import { SiteChrome } from "~/app/_components/site-chrome";
+import { SiteHeader } from "~/components/site-header";
 import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
@@ -48,7 +49,7 @@ export default function RootLayout({
     <html lang="en" className={`${lato.variable} ${playfair.variable}`}>
       <body className="bg-gms-cream font-sans text-gms-ink antialiased">
         <TRPCReactProvider>
-          <SiteChrome>{children}</SiteChrome>
+          <SiteChrome header={<SiteHeader />}>{children}</SiteChrome>
         </TRPCReactProvider>
       </body>
     </html>

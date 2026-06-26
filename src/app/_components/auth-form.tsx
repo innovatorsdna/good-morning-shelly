@@ -13,7 +13,16 @@ const inputClass =
 const labelClass =
   "text-gms-stone mb-1 block text-[11px] font-bold tracking-[0.14em] uppercase";
 
-export function AuthForm() {
+interface AuthFormProps {
+  /**
+   * Where to send the user after a successful sign-in/sign-up. When omitted,
+   * the current route is simply refreshed (used by the admin gate, which
+   * re-renders in place). Should always be an internal path.
+   */
+  redirectTo?: string;
+}
+
+export function AuthForm({ redirectTo }: AuthFormProps = {}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("sign-in");
   const [name, setName] = useState("");
@@ -47,6 +56,9 @@ export function AuthForm() {
       return;
     }
 
+    if (redirectTo) {
+      router.push(redirectTo);
+    }
     router.refresh();
   };
 
