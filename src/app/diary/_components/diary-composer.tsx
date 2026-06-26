@@ -9,7 +9,8 @@ import { api } from "~/trpc/react";
 
 export function DiaryComposer() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
 
   const [caption, setCaption] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
@@ -99,39 +100,90 @@ export function DiaryComposer() {
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="border-gms-line bg-gms-panel relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed"
-        >
-          {displaySrc ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={displaySrc}
-                alt="Selected"
-                className="h-full w-full object-cover"
-              />
-              {uploading && (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm font-medium text-white">
-                  Uploading…
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="text-gms-muted flex flex-col items-center gap-2 text-sm">
-              <span className="text-4xl">＋</span>
-              Tap to add a photo (optional)
-            </span>
-          )}
-        </button>
+        {displaySrc ? (
+          <div className="border-gms-line bg-gms-panel relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={displaySrc}
+              alt="Selected"
+              className="h-full w-full object-cover"
+            />
+            {uploading && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-sm font-medium text-white">
+                Uploading…
+              </span>
+            )}
+            {!uploading && (
+              <div className="absolute right-2 bottom-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur"
+                >
+                  📷 Camera
+                </button>
+                <button
+                  type="button"
+                  onClick={() => libraryInputRef.current?.click()}
+                  className="rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur"
+                >
+                  🖼️ Library
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreview(null);
+                    setImagePath(null);
+                    setError(null);
+                  }}
+                  className="rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white backdrop-blur"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="border-gms-line bg-gms-panel flex aspect-square w-full flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed">
+            <span className="text-gms-muted text-sm">Add a photo (optional)</span>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="border-gms-line text-gms-ink hover:bg-gms-cream flex flex-col items-center gap-1 rounded-lg border bg-white px-5 py-3 text-sm font-medium transition-colors"
+              >
+                <span className="text-2xl">📷</span>
+                Camera
+              </button>
+              <button
+                type="button"
+                onClick={() => libraryInputRef.current?.click()}
+                className="border-gms-line text-gms-ink hover:bg-gms-cream flex flex-col items-center gap-1 rounded-lg border bg-white px-5 py-3 text-sm font-medium transition-colors"
+              >
+                <span className="text-2xl">🖼️</span>
+                Library
+              </button>
+            </div>
+          </div>
+        )}
 
-        {/* `capture` hints mobile browsers to offer the camera directly. */}
+        {/* `capture` opens the camera directly; the plain input opens the photo library. */}
         <input
-          ref={fileInputRef}
+          ref={cameraInputRef}
           type="file"
           accept="image/*"
           capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void onPickFile(file);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={libraryInputRef}
+          type="file"
+          accept="image/*"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
