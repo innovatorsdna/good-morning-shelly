@@ -10,7 +10,7 @@ import { type MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Good Morning Shelly",
-    short_name: "Good Morning Shelly",
+    short_name: "Diary",
     description:
       "Personal blog about faith, family, nature, and morning moments.",
     start_url: "/diary/",
