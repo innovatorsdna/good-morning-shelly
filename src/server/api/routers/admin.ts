@@ -14,7 +14,9 @@ import {
 } from "~/server/db/schema";
 import { deleteMediaObject, listMediaObjects, presignUpload } from "~/server/s3";
 
-const STATUSES = ["publish", "draft", "private"] as const;
+// `status` is now purely the publish/draft lifecycle. Audience lives on the
+// separate `isPrivate` flag; the legacy "private" status was migrated away.
+const STATUSES = ["publish", "draft"] as const;
 const TYPES = ["post", "page"] as const;
 
 const slugSchema = z
@@ -28,6 +30,9 @@ const upsertInput = z.object({
   title: z.string().min(1).max(512),
   slug: slugSchema,
   status: z.enum(STATUSES).default("draft"),
+  // Audience for posts: true = members-only, false = public. Forced to public
+  // for pages (see create/update). Defaults to members-only.
+  isPrivate: z.boolean().default(true),
   body: z.string().default(""),
   excerpt: z.string().max(500).optional().nullable(),
   cover: z.string().max(1024).optional().nullable(),
@@ -141,6 +146,7 @@ export const adminRouter = createTRPCRouter({
           slug: postTable.slug,
           title: postTable.title,
           status: postTable.status,
+          isPrivate: postTable.isPrivate,
           source: postTable.source,
           publishedAt: postTable.publishedAt,
           updatedAt: postTable.updatedAt,
@@ -212,6 +218,8 @@ export const adminRouter = createTRPCRouter({
           excerpt: input.excerpt ?? null,
           cover: input.cover ?? null,
           status: input.status,
+          // Pages are always public; only posts can be members-only.
+          isPrivate: input.type === "page" ? false : input.isPrivate,
           sticky: input.sticky,
           authorId: ctx.session.user.id,
           publishedAt,
@@ -287,6 +295,8 @@ export const adminRouter = createTRPCRouter({
           excerpt: input.excerpt ?? null,
           cover: input.cover ?? null,
           status: input.status,
+          // Pages are always public; only posts can be members-only.
+          isPrivate: input.type === "page" ? false : input.isPrivate,
           sticky: input.sticky,
           publishedAt,
           updatedAt: new Date(),
@@ -445,6 +455,50 @@ export const adminRouter = createTRPCRouter({
           updatedAt: new Date(),
           ...(input.status === "publish" ? { publishedAt: new Date() } : {}),
         })
+        .where(inArray(postTable.id, editableIds));
+
+      const cats = await ctx.db
+        .select({ slug: postCategory.categorySlug })
+        .from(postCategory)
+        .where(inArray(postCategory.postId, editableIds));
+      revalidatePublicPaths(
+        editable.map((r) => r.slug),
+        cats.map((c) => c.slug),
+      );
+      return {
+        updated: editable.length,
+        skipped: rows.length - editable.length,
+      };
+    }),
+
+  bulkSetVisibility: adminProcedure
+    .input(
+      z.object({
+        ids: z.array(z.number().int()).min(1).max(500),
+        isPrivate: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const rows = await ctx.db
+        .select({
+          id: postTable.id,
+          slug: postTable.slug,
+          source: postTable.source,
+          type: postTable.type,
+        })
+        .from(postTable)
+        .where(inArray(postTable.id, input.ids));
+      // Archived MDX is read-only, and pages are always public.
+      const editable = rows.filter(
+        (r) => r.source !== "mdx" && r.type === "post",
+      );
+      if (editable.length === 0) {
+        return { updated: 0, skipped: rows.length };
+      }
+      const editableIds = editable.map((r) => r.id);
+      await ctx.db
+        .update(postTable)
+        .set({ isPrivate: input.isPrivate, updatedAt: new Date() })
         .where(inArray(postTable.id, editableIds));
 
       const cats = await ctx.db

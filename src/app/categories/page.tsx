@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { getAllCategories } from "~/lib/content";
+import { getViewer } from "~/server/better-auth/server";
 
 export const metadata = { title: "Categories — Good Morning Shelly" };
 
 export default async function CategoriesIndex() {
-  const cats = await getAllCategories();
+  const { canSeePrivate } = await getViewer();
+  const cats = await getAllCategories({ includePrivate: canSeePrivate });
   return (
     <main className="px-6 pt-8">
       <header className="mb-8 text-center">

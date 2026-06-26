@@ -56,7 +56,10 @@ export const auth = betterAuth({
       role: {
         type: "string",
         required: false,
-        defaultValue: "user",
+        // Everyone who signs up is a "member": they can read members-only
+        // posts but cannot reach /admin or /diary (those require "admin",
+        // which is granted manually in the database).
+        defaultValue: "member",
         // Users cannot change their own role from client APIs.
         input: false,
       },

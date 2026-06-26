@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { MembersPrompt } from "~/components/members-prompt";
 import { formatPostDate, getPublishedPosts } from "~/lib/content";
+import { getViewer } from "~/server/better-auth/server";
 
 export const metadata = { title: "Archive — Good Morning Shelly" };
 
 export default async function ArchivePage() {
-  const posts = await getPublishedPosts();
+  const { canSeePrivate } = await getViewer();
+  const posts = await getPublishedPosts({ includePrivate: canSeePrivate });
   const byYear = new Map<string, typeof posts>();
   for (const p of posts) {
     const year = p.date ? p.date.slice(0, 4) : "Undated";
@@ -16,6 +19,7 @@ export default async function ArchivePage() {
 
   return (
     <main className="px-6 pt-8">
+      {!canSeePrivate && <MembersPrompt />}
       <header className="mb-6 text-center">
         <p className="m-0 mb-2 text-[10px] font-bold tracking-[0.2em] text-gms-rose uppercase">
           Archive

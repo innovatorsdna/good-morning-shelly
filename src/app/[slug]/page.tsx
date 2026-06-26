@@ -11,6 +11,7 @@ import {
   getCategoryDisplayName,
   getItemBySlug,
 } from "~/lib/content";
+import { getViewer } from "~/server/better-auth/server";
 
 const UPLOADS_BASE = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL ?? "";
 
@@ -43,8 +44,10 @@ interface RouteParams {
 
 export async function generateStaticParams() {
   const items = await getAllItems();
+  // Only pre-render public pages. Members-only posts render dynamically and
+  // must not be baked into the static build.
   return items
-    .filter((it) => it.status === "publish")
+    .filter((it) => it.status === "publish" && !it.isPrivate)
     .map((it) => ({ slug: it.slug }));
 }
 
@@ -52,6 +55,16 @@ export async function generateMetadata({ params }: RouteParams) {
   const { slug } = await params;
   const item = await getItemBySlug(slug);
   if (item?.status !== "publish") return {};
+  if (item.isPrivate) {
+    // Never index members-only posts. Only reveal the title/excerpt to a
+    // viewer who is actually allowed to read the post.
+    const { canSeePrivate } = await getViewer();
+    return {
+      title: canSeePrivate ? item.title : "Members only — Good Morning Shelly",
+      description: canSeePrivate ? item.excerpt : undefined,
+      robots: { index: false, follow: false },
+    };
+  }
   return {
     title: item.title,
     description: item.excerpt,
@@ -67,6 +80,16 @@ export default async function ItemPage({ params }: RouteParams) {
     const cats = await getAllCategories();
     if (cats.find((c) => c.slug === slug)) redirect(`/category/${slug}/`);
     notFound();
+  }
+
+  // Gate members-only posts: signed-out visitors are sent to the login page
+  // and returned here afterwards. Every signed-in account is a member, so a
+  // present session is enough to read it.
+  if (item.isPrivate) {
+    const { canSeePrivate } = await getViewer();
+    if (!canSeePrivate) {
+      redirect(`/login/?next=${encodeURIComponent(`/${slug}/`)}`);
+    }
   }
 
   return (

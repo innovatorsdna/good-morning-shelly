@@ -43,6 +43,13 @@
       "when": 1782475752484,
       "tag": "0005_strange_sumo",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1782489995183,
+      "tag": "0006_lowly_kree",
+      "breakpoints": true
     }
   ]
 }

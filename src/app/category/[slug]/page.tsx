@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { PostCard } from "~/components/post-card";
+import { MembersPrompt } from "~/components/members-prompt";
 import {
   getAllCategories,
   getCategoryDisplayName,
   getPostsByCategory,
 } from "~/lib/content";
+import { getViewer } from "~/server/better-auth/server";
 
 interface RouteParams {
   params: Promise<{ slug: string }>;
@@ -22,11 +24,13 @@ export async function generateMetadata({ params }: RouteParams) {
 
 export default async function CategoryPage({ params }: RouteParams) {
   const { slug } = await params;
-  const posts = await getPostsByCategory(slug);
+  const { canSeePrivate } = await getViewer();
+  const posts = await getPostsByCategory(slug, { includePrivate: canSeePrivate });
   if (posts.length === 0) notFound();
 
   return (
     <main className="px-6 pt-8">
+      {!canSeePrivate && <MembersPrompt />}
       <header className="mb-10 border-b border-gms-line pb-5 text-center">
         <p className="m-0 mb-2 text-[10px] font-bold tracking-[0.2em] text-gms-rose uppercase">
           Category

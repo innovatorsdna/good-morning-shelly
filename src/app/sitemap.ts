@@ -7,7 +7,12 @@ import {
 const BASE = process.env.SITE_URL ?? "https://goodmorningshelly.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const items = (await getAllItems()).filter((it) => it.status === "publish");
+  // Only public content belongs in the sitemap — members-only posts must not
+  // be advertised to crawlers. `getAllCategories()` already defaults to
+  // public-only counts.
+  const items = (await getAllItems()).filter(
+    (it) => it.status === "publish" && !it.isPrivate,
+  );
   const cats = await getAllCategories();
 
   return [
