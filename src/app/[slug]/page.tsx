@@ -7,11 +7,18 @@ import { CommentsSection } from "~/app/_components/comments/comments-section";
 import {
   formatPostDate,
   getAllCategories,
-  getAllItems,
   getCategoryDisplayName,
   getItemBySlug,
 } from "~/lib/content";
 import { getViewer } from "~/server/better-auth/server";
+
+// The shared layout (SiteHeader) reads the session via `headers()` to show the
+// Sign in / Sign out control, and members-only posts are gated per request.
+// Both opt this route into dynamic rendering, so it can't be statically
+// prerendered: doing so would call `headers()` at build time and throw a
+// DynamicServerError (digest DYNAMIC_SERVER_USAGE) that surfaces as a 500.
+// Render on demand instead of declaring `generateStaticParams`.
+export const dynamic = "force-dynamic";
 
 const UPLOADS_BASE = process.env.NEXT_PUBLIC_UPLOADS_BASE_URL ?? "";
 
@@ -40,15 +47,6 @@ const mdxComponents = {
 
 interface RouteParams {
   params: Promise<{ slug: string }>;
-}
-
-export async function generateStaticParams() {
-  const items = await getAllItems();
-  // Only pre-render public pages. Members-only posts render dynamically and
-  // must not be baked into the static build.
-  return items
-    .filter((it) => it.status === "publish" && !it.isPrivate)
-    .map((it) => ({ slug: it.slug }));
 }
 
 export async function generateMetadata({ params }: RouteParams) {

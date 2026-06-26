@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { PostCard } from "~/components/post-card";
 import { MembersPrompt } from "~/components/members-prompt";
 import {
-  getAllCategories,
   getCategoryDisplayName,
   getPostsByCategory,
 } from "~/lib/content";
@@ -12,10 +11,13 @@ interface RouteParams {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  const cats = await getAllCategories();
-  return cats.map((c) => ({ slug: c.slug }));
-}
+// This page reads the session via `getViewer()` (and the shared layout's
+// SiteHeader does too) to scope which posts a viewer may see. Both call
+// `headers()`, which opts the route into dynamic rendering. Statically
+// prerendering it via `generateStaticParams` would call `headers()` at build
+// time and throw a DynamicServerError (digest DYNAMIC_SERVER_USAGE) that
+// surfaces as a 500, so render on demand instead.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: RouteParams) {
   const { slug } = await params;
