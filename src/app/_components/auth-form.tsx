@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { authClient } from "~/server/better-auth/client";
+import { api } from "~/trpc/react";
 
-type Mode = "sign-in" | "sign-up";
+type Mode = "sign-in" | "sign-up" | "contact";
 
 const inputClass =
   "border-gms-line text-gms-ink placeholder:text-gms-muted focus:border-gms-sage w-full rounded-md border bg-white px-3 py-2 text-[15px] focus:outline-none";
@@ -31,6 +32,31 @@ export function AuthForm({ redirectTo }: AuthFormProps = {}) {
   const [registrationKey, setRegistrationKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Contact tab state.
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactSent, setContactSent] = useState(false);
+  const contact = api.contact.send.useMutation({
+    onSuccess: () => {
+      setContactSent(true);
+      setContactEmail("");
+      setContactMessage("");
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError(null);
+    setContactSent(false);
+  };
+
+  const handleContactSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    contact.mutate({ email: contactEmail, message: contactMessage });
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -72,98 +98,152 @@ export function AuthForm({ redirectTo }: AuthFormProps = {}) {
       <div className="flex justify-center gap-2">
         <button
           type="button"
-          onClick={() => {
-            setMode("sign-in");
-            setError(null);
-          }}
+          onClick={() => switchMode("sign-in")}
           className={tabClass(mode === "sign-in")}
         >
           Sign in
         </button>
         <button
           type="button"
-          onClick={() => {
-            setMode("sign-up");
-            setError(null);
-          }}
+          onClick={() => switchMode("sign-up")}
           className={tabClass(mode === "sign-up")}
         >
           Sign up
         </button>
+        <button
+          type="button"
+          onClick={() => switchMode("contact")}
+          className={tabClass(mode === "contact")}
+        >
+          Contact
+        </button>
       </div>
 
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-        {mode === "sign-up" && (
+      {mode === "contact" ? (
+        <form className="flex flex-col gap-4" onSubmit={handleContactSubmit}>
           <label className="block">
-            <span className={labelClass}>Name</span>
+            <span className={labelClass}>Email</span>
             <input
-              type="text"
+              type="email"
               required
-              placeholder="Your name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              placeholder="you@example.com"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
               className={inputClass}
             />
           </label>
-        )}
 
-        <label className="block">
-          <span className={labelClass}>Email</span>
-          <input
-            type="email"
-            required
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={inputClass}
-          />
-        </label>
-
-        <label className="block">
-          <span className={labelClass}>Password</span>
-          <input
-            type="password"
-            required
-            minLength={8}
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={inputClass}
-          />
-        </label>
-
-        {mode === "sign-up" && (
           <label className="block">
-            <span className={labelClass}>Registration key</span>
+            <span className={labelClass}>Message</span>
+            <textarea
+              required
+              rows={4}
+              placeholder="How can we help?"
+              value={contactMessage}
+              onChange={(e) => setContactMessage(e.target.value)}
+              className={`${inputClass} resize-y`}
+            />
+          </label>
+
+          {error && <p className="text-gms-rose m-0 text-[13px]">{error}</p>}
+          {contactSent && (
+            <p className="text-gms-sage m-0 text-[13px]">
+              Thanks! Your message has been sent.
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={contact.isPending}
+            className="bg-gms-rose mt-1 rounded-md px-5 py-2.5 text-[12px] font-bold tracking-[0.1em] text-white uppercase transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {contact.isPending ? "Sending…" : "Send message"}
+          </button>
+        </form>
+      ) : (
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          {mode === "sign-up" && (
+            <label className="block">
+              <span className={labelClass}>Name</span>
+              <input
+                type="text"
+                required
+                placeholder="Your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+          )}
+
+          <label className="block">
+            <span className={labelClass}>Email</span>
+            <input
+              type="email"
+              required
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
+            />
+          </label>
+
+          <label className="block">
+            <span className={labelClass}>Password</span>
             <input
               type="password"
               required
-              placeholder="Required to create an account"
-              value={registrationKey}
-              onChange={(e) => setRegistrationKey(e.target.value)}
+              minLength={8}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
-            <span className="text-gms-muted mt-1 block text-[12px] leading-[1.5] font-light">
-              Account creation is invite-only. Enter the registration key to
-              continue.
-            </span>
           </label>
-        )}
 
-        {error && <p className="text-gms-rose m-0 text-[13px]">{error}</p>}
+          {mode === "sign-up" && (
+            <label className="block">
+              <span className={labelClass}>Registration key</span>
+              <input
+                type="password"
+                required
+                placeholder="Required to create an account"
+                value={registrationKey}
+                onChange={(e) => setRegistrationKey(e.target.value)}
+                className={inputClass}
+              />
+              <span className="text-gms-muted mt-1 block text-[12px] leading-[1.5] font-light">
+                Account creation is invite-only. Enter the registration key to
+                continue. Need an invite?{" "}
+                <a
+                  href="#contact"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    switchMode("contact");
+                  }}
+                  className="text-gms-sage hover:underline"
+                >
+                  Just ask.
+                </a>
+              </span>
+            </label>
+          )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-gms-rose mt-1 rounded-md px-5 py-2.5 text-[12px] font-bold tracking-[0.1em] text-white uppercase transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          {loading
-            ? "Please wait…"
-            : mode === "sign-in"
-              ? "Sign in"
-              : "Create account"}
-        </button>
-      </form>
+          {error && <p className="text-gms-rose m-0 text-[13px]">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-gms-rose mt-1 rounded-md px-5 py-2.5 text-[12px] font-bold tracking-[0.1em] text-white uppercase transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {loading
+              ? "Please wait…"
+              : mode === "sign-in"
+                ? "Sign in"
+                : "Create account"}
+          </button>
+        </form>
+      )}
     </div>
   );
 }
