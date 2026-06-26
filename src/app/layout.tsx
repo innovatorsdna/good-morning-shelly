@@ -9,7 +9,23 @@ import { TRPCReactProvider } from "~/trpc/react";
 export const metadata: Metadata = {
   title: "Good Morning Shelly",
   description: "Personal blog about faith, family, nature, and morning moments.",
-  icons: [{ rel: "icon", url: "/favicon.svg", type: "image/svg+xml" }],
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    // 180x180 PNG generated from favicon.svg — iOS ignores SVG icons for the
+    // home screen, so this is what shows when the site is added there.
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  // Generates the Apple PWA meta tags so iOS Safari's "Add to Home Screen"
+  // installs a full-screen, standalone web app:
+  //   <meta name="apple-mobile-web-app-capable" content="yes">
+  //   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  //   <meta name="apple-mobile-web-app-title" content="Good Morning Shelly">
+  appleWebApp: {
+    capable: true,
+    title: "Good Morning Shelly",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 const lato = Lato({
