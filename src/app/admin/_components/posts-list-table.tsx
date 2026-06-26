@@ -27,22 +27,32 @@ export function PostsListTable({ rows, type }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const updateStatus = api.admin.bulkUpdateStatus.useMutation();
   const setVisibility = api.admin.bulkSetVisibility.useMutation();
   const bulkDelete = api.admin.bulkDelete.useMutation();
   const basePath = type === "post" ? "/admin/posts" : "/admin/pages";
 
-  const editable = useMemo(() => rows.filter((r) => r.source !== "mdx"), [rows]);
-  const allEditableSelected =
-    editable.length > 0 && editable.every((r) => selected.has(r.id));
+  // Rows the bulk toolbar can act on. In the posts view every post is
+  // selectable — including archived MDX posts, whose one permitted edit is
+  // flipping visibility (make public / members only). In the pages view only
+  // non-archived pages are selectable, since pages have no visibility action
+  // and archived content can't be published or deleted.
+  const canSelect = (r: PostRow) => (type === "post" ? true : r.source !== "mdx");
+  const selectable = useMemo(
+    () => rows.filter((r) => (type === "post" ? true : r.source !== "mdx")),
+    [rows, type],
+  );
+  const allSelectableSelected =
+    selectable.length > 0 && selectable.every((r) => selected.has(r.id));
   const anyChecked = selected.size > 0;
 
   const toggleAll = () => {
-    if (allEditableSelected) {
+    if (allSelectableSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(editable.map((r) => r.id)));
+      setSelected(new Set(selectable.map((r) => r.id)));
     }
   };
 
@@ -58,12 +68,18 @@ export function PostsListTable({ rows, type }: Props) {
   const runStatus = async (status: "publish" | "draft") => {
     if (selected.size === 0) return;
     setError(null);
+    setNotice(null);
     try {
-      await updateStatus.mutateAsync({
+      const res = await updateStatus.mutateAsync({
         ids: [...selected],
         status,
       });
       setSelected(new Set());
+      if (res.skipped > 0) {
+        setNotice(
+          `${res.updated} updated · ${res.skipped} skipped (archived posts are read-only — only their visibility can change).`,
+        );
+      }
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -73,9 +89,16 @@ export function PostsListTable({ rows, type }: Props) {
   const runVisibility = async (isPrivate: boolean) => {
     if (selected.size === 0) return;
     setError(null);
+    setNotice(null);
     try {
-      await setVisibility.mutateAsync({ ids: [...selected], isPrivate });
+      const res = await setVisibility.mutateAsync({
+        ids: [...selected],
+        isPrivate,
+      });
       setSelected(new Set());
+      if (res.skipped > 0) {
+        setNotice(`${res.updated} updated · ${res.skipped} skipped.`);
+      }
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -99,9 +122,15 @@ export function PostsListTable({ rows, type }: Props) {
     )
       return;
     setError(null);
+    setNotice(null);
     try {
-      await bulkDelete.mutateAsync({ ids: [...selected] });
+      const res = await bulkDelete.mutateAsync({ ids: [...selected] });
       setSelected(new Set());
+      if (res.skipped > 0) {
+        setNotice(
+          `${res.deleted} deleted · ${res.skipped} skipped (archived posts are read-only).`,
+        );
+      }
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -175,6 +204,12 @@ export function PostsListTable({ rows, type }: Props) {
         </div>
       )}
 
+      {notice && (
+        <div className="mt-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+          {notice}
+        </div>
+      )}
+
       <div className="mt-4 overflow-x-auto rounded-lg border border-neutral-200 bg-white">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-neutral-200 bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
@@ -183,8 +218,8 @@ export function PostsListTable({ rows, type }: Props) {
                 <input
                   type="checkbox"
                   aria-label="Select all on this page"
-                  disabled={editable.length === 0}
-                  checked={allEditableSelected}
+                  disabled={selectable.length === 0}
+                  checked={allSelectableSelected}
                   onChange={toggleAll}
                 />
               </th>
@@ -207,23 +242,27 @@ export function PostsListTable({ rows, type }: Props) {
             )}
             {rows.map((r) => {
               const archived = r.source === "mdx";
+              const selectableRow = canSelect(r);
               return (
                 <tr
                   key={r.id}
                   className="border-b border-neutral-100 last:border-0"
                 >
                   <td className="px-3 py-2 align-middle">
-                    {archived ? (
-                      <span title="Archived MDX is read-only" className="text-xs text-neutral-300">
-                        —
-                      </span>
-                    ) : (
+                    {selectableRow ? (
                       <input
                         type="checkbox"
                         aria-label={`Select ${r.title}`}
                         checked={selected.has(r.id)}
                         onChange={(e) => toggleOne(r.id, e.target.checked)}
                       />
+                    ) : (
+                      <span
+                        title="Archived pages are read-only"
+                        className="text-xs text-neutral-300"
+                      >
+                        —
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2">
