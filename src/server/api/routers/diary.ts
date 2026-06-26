@@ -83,20 +83,30 @@ export const diaryRouter = createTRPCRouter({
       });
     }),
 
-  /** Create a diary entry from an already-uploaded image path + caption. */
+  /**
+   * Create a diary entry. A post is a photo, a text-only message, or both —
+   * at least one of `image`/`caption` must be present.
+   */
   create: adminProcedure
     .input(
       z.object({
-        image: z.string().min(1).max(1024),
+        image: z.string().min(1).max(1024).optional().nullable(),
         caption: z.string().max(2000).optional().nullable(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const caption = input.caption?.trim() ? input.caption.trim() : null;
+      const image = input.image?.trim() ? input.image.trim() : null;
+      if (!image && !caption) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Add a photo or a message.",
+        });
+      }
       const inserted = await ctx.db
         .insert(diaryPost)
         .values({
-          image: input.image,
+          image,
           caption,
           authorId: ctx.session.user.id,
         })

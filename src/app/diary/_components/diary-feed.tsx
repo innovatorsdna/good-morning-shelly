@@ -223,12 +223,14 @@ function DiaryPostCard({ post }: { post: DiaryPost }) {
         </div>
       </div>
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={post.caption ?? ""}
-        className="bg-gms-panel block w-full object-cover"
-      />
+      {src && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={src}
+          alt={post.caption ?? ""}
+          className="bg-gms-panel block w-full object-cover"
+        />
+      )}
 
       {/* Action bar: heart + count, comment toggle + count */}
       <div className="flex items-center gap-4 px-4 pt-3">

@@ -56,12 +56,16 @@ export function DiaryComposer() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!imagePath) {
-      setError("Add a photo first.");
+    if (!imagePath && !caption.trim()) {
+      setError("Add a photo or write a message.");
       return;
     }
     create.mutate({ image: imagePath, caption });
   };
+
+  // A post needs either a photo or a caption; block submit only while an upload
+  // is still in flight or nothing has been entered yet.
+  const canPost = (!!imagePath || caption.trim().length > 0) && !uploading;
 
   const displaySrc = imagePath ? uploadsUrl(imagePath) : preview;
 
@@ -72,12 +76,12 @@ export function DiaryComposer() {
           Cancel
         </Link>
         <h1 className="text-gms-ink font-serif text-lg font-semibold">
-          New moment
+          New love note
         </h1>
         <button
           type="submit"
           form="diary-composer"
-          disabled={!imagePath || uploading || create.isPending}
+          disabled={!canPost || create.isPending}
           className="bg-gms-rose rounded-full px-4 py-1.5 text-[12px] font-bold tracking-[0.1em] text-white uppercase transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {create.isPending ? "Posting…" : "Post"}
@@ -117,7 +121,7 @@ export function DiaryComposer() {
           ) : (
             <span className="text-gms-muted flex flex-col items-center gap-2 text-sm">
               <span className="text-4xl">＋</span>
-              Tap to add a photo
+              Tap to add a photo (optional)
             </span>
           )}
         </button>

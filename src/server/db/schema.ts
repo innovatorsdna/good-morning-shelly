@@ -283,7 +283,8 @@ export const diaryPost = sqliteTable(
     authorId: d
       .text({ length: 255 })
       .references(() => user.id, { onDelete: "set null" }),
-    image: d.text({ length: 1024 }).notNull(),
+    // Optional: a post can be a photo, a text-only message, or both.
+    image: d.text({ length: 1024 }),
     caption: d.text(),
     // Running total of heart taps. There's no per-user like row — a tap simply
     // increments this counter (you can tap as many times as you like).
